@@ -1,0 +1,27 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist-electron/
+release/
+*.exe
+
+# 运行时数据（游戏目录、版本、库、日志、缓存、配置——绝不上传）
+.minecraft/
+logs/
+cache/
+*.log
+config.json
+
+# 官网自检截图
+renderer/website/_shots/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# 环境变量与密钥
+.env
+.env.*

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AOURA 启动器 · 官方网站 · 由珉爱制作</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='64' y2='64'%3E%3Cstop offset='0' stop-color='%234de3ff'/%3E%3Cstop offset='1' stop-color='%23a78bff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23081426'/%3E%3Cpath d='M14 44 32 18l18 26z' stroke='url(%23g)' stroke-width='5' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='32' cy='37' r='5.5' fill='%237df3ff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg-0:#03060c; --bg-1:#081020; --bg-2:#0c1730;
+  --cyan:#4de3ff; --violet:#a78bff; --teal:#56e0c8; --gold:#ffc46b; --accent:#4fb2ff; --accent-2:#a78bff;
+  --txt:#eaf3ff; --txt-2:#9db4d6; --txt-faint:#5d769c;
+  --r-lg:22px; --r-md:16px;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:"HarmonyOS Sans SC","Microsoft YaHei UI","PingFang SC","Segoe UI",system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg-2) 0%,var(--bg-1) 45%,var(--bg-0) 100%);
+  color:var(--txt);font-size:15px;line-height:1.7;min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--cyan);text-decoration:none}
+
+/* ===== 背景光效 ===== */
+.stage{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.stage .orb{position:absolute;border-radius:50%;filter:blur(90px)}
+.o1{width:46%;aspect-ratio:1;left:3%;top:-10%;background:radial-gradient(circle,rgba(77,227,255,.30),transparent 70%);animation:fl 20s ease-in-out infinite alternate}
+.o2{width:40%;aspect-ratio:1;right:-6%;top:4%;background:radial-gradient(circle,rgba(167,139,255,.30),transparent 70%);animation:fl 26s ease-in-out infinite alternate-reverse}
+.o3{width:44%;aspect-ratio:1;left:24%;bottom:-20%;background:radial-gradient(circle,rgba(86,224,200,.20),transparent 70%);animation:fl 24s ease-in-out infinite alternate}
+.stage .band{position:absolute;left:-10%;top:-22%;width:120%;height:50%;background:
+  radial-gradient(60% 100% at 18% 30%,rgba(77,178,255,.18),transparent 62%),
+  radial-gradient(55% 100% at 55% 18%,rgba(77,227,255,.14),transparent 64%),
+  radial-gradient(58% 100% at 88% 32%,rgba(167,139,255,.16),transparent 62%);
+  filter:blur(46px);opacity:.8;animation:band 17s ease-in-out infinite alternate}
+.vig{position:absolute;inset:0;background:radial-gradient(120% 100% at 50% 40%,transparent 45%,rgba(2,5,12,.55) 100%)}
+.grain{position:absolute;inset:0;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+@keyframes fl{from{transform:translate(0,0) scale(1)}to{transform:translate(4%,5%) scale(1.12)}}
+@keyframes band{from{transform:translateX(-2%) scaleY(1)}to{transform:translateX(2.5%) scaleY(1.12)}}
+
+/* ===== 框架 ===== */
+.wrap{position:relative;z-index:3;max-width:1120px;margin:0 auto;padding:0 28px}
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);background:rgba(8,16,32,.72);border-bottom:1px solid rgba(125,190,255,.12)}
+.nav-in{max-width:1120px;margin:0 auto;padding:0 28px;height:64px;display:flex;align-items:center;gap:26px}
+.brand{display:flex;align-items:center;gap:9px;cursor:pointer}
+.brand svg{width:26px;height:26px;filter:drop-shadow(0 0 8px rgba(77,227,255,.6))}
+.brand b{font-size:17px;letter-spacing:1.5px;background:linear-gradient(90deg,var(--cyan),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand span{font-size:12.5px;color:var(--txt-2);letter-spacing:1px}
+.nav-links{display:flex;gap:6px;margin-left:10px}
+.nav-links a{color:var(--txt-2);font-size:14px;padding:7px 14px;border-radius:10px;transition:all .25s var(--ease)}
+.nav-links a:hover{color:var(--txt);background:rgba(77,227,255,.08)}
+.nav-links a.on{color:var(--txt);background:rgba(77,227,255,.12);box-shadow:inset 0 0 0 1px rgba(77,227,255,.25)}
+.nav-cta{margin-left:auto}
+main{position:relative;z-index:3}
+.page{display:none;padding:104px 0 80px;min-height:100vh;animation:pgIn .5s var(--ease)}
+.page.on{display:block}
+@keyframes pgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ===== 通用 ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-size:15px;font-weight:600;color:var(--txt);padding:13px 26px;border-radius:14px;border:1px solid rgba(125,190,255,.22);background:rgba(14,26,52,.5);transition:all .28s var(--ease);position:relative;overflow:hidden}
+.btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,0,0,.35);border-color:rgba(77,227,255,.5)}
+.btn-glow{background:linear-gradient(135deg,rgba(77,227,255,.20),rgba(167,139,255,.16));border:1px solid rgba(77,227,255,.5);color:#eaffff;box-shadow:0 14px 44px rgba(0,0,0,.4),0 0 34px rgba(77,227,255,.16)}
+.btn-glow:hover{box-shadow:0 16px 54px rgba(0,0,0,.45),0 0 60px rgba(77,227,255,.3),0 0 30px rgba(167,139,255,.18)}
+.btn-glow::after{content:"";position:absolute;left:-70%;top:-30%;width:50%;height:160%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.14),transparent);transform:rotate(18deg);animation:sheen 3.6s ease-in-out infinite}
+@keyframes sheen{0%,55%{left:-70%}100%{left:150%}}
+.glass{position:relative;border-radius:var(--r-lg);background:linear-gradient(165deg,rgba(24,40,76,.42),rgba(12,24,50,.34));border:1px solid rgba(125,190,255,.22);backdrop-filter:blur(26px) saturate(1.4);-webkit-backdrop-filter:blur(26px) saturate(1.4);box-shadow:0 16px 46px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.10);overflow:hidden}
+.glass::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(77,227,255,.45),transparent)}
+.sec-tag{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--cyan);letter-spacing:3px;font-weight:600}
+.sec-tag::before{content:"";width:22px;height:1px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+h2{font-size:34px;font-weight:800;letter-spacing:1px;margin:12px 0 8px}
+h2 em{font-style:normal;background:linear-gradient(90deg,var(--cyan),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--txt-faint);font-size:14.5px;max-width:560px}
+
+/* ===== 首页 Hero ===== */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:40px}
+.hero-logo{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin-bottom:26px}
+.hero-logo .ring{position:absolute;border-radius:50%;border:1px solid rgba(77,227,255,.4)}
+.hero-logo .r1{inset:0;animation:spin 9s linear infinite}
+.hero-logo .r2{inset:-16px;border-style:dashed;border-color:rgba(167,139,255,.35);animation:spin 14s linear infinite reverse}
+.hero-logo .halo{position:absolute;inset:-34px;border-radius:50%;background:radial-gradient(circle,rgba(77,227,255,.16),rgba(167,139,255,.1) 40%,transparent 70%);animation:breathe 2.8s ease-in-out infinite}
+.hero-logo svg{width:74px;height:74px;filter:drop-shadow(0 0 20px rgba(77,227,255,.6));animation:breathe2 2.8s ease-in-out infinite;position:relative;z-index:2}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:1;transform:scale(1.05)}}
+@keyframes breathe2{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.hero h1{font-size:52px;font-weight:900;letter-spacing:4px;background:linear-gradient(120deg,#fff,#a8ecff 45%,var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .slogan{margin-top:14px;font-size:19px;color:var(--txt-2);letter-spacing:6px}
+.hero .lead{margin-top:16px;color:var(--txt-faint);font-size:14.5px;max-width:520px}
+.hero-cta{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.hero-ver{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.hv{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--txt-2);padding:6px 14px;border-radius:99px;border:1px solid rgba(125,190,255,.16);background:rgba(12,22,44,.4)}
+.hv b{color:var(--cyan);font-weight:600}
+.hv .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal)}
+.hero-cards{margin-top:70px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;width:100%}
+.feat-mini{padding:26px 24px;text-align:left}
+.feat-mini .fi{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(77,227,255,.16),rgba(167,139,255,.12));margin-bottom:16px}
+.feat-mini .fi svg{width:22px;height:22px;color:var(--cyan);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(77,227,255,.5))}
+.feat-mini b{font-size:16px;letter-spacing:.5px}
+.feat-mini p{margin-top:8px;font-size:13.5px;color:var(--txt-faint)}
+
+/* ===== 特性页 ===== */
+.sec-head{margin-bottom:44px}
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.feat-card{padding:28px 26px}
+.feat-card .fi{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(77,227,255,.18),rgba(167,139,255,.14));margin-bottom:16px}
+.feat-card .fi svg{width:24px;height:24px;color:var(--cyan);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 10px rgba(77,227,255,.55))}
+.feat-card b{font-size:17px;letter-spacing:.5px}
+.feat-card p{margin-top:9px;font-size:13.5px;color:var(--txt-faint)}
+.feat-card ul{list-style:none;margin-top:12px}
+.feat-card li{font-size:13px;color:var(--txt-2);padding:4px 0 4px 20px;position:relative}
+.feat-card li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.theme-strip{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}
+.ts{flex:1;min-width:110px;padding:14px 12px;text-align:center;border-radius:14px;border:1px solid rgba(125,190,255,.14);background:rgba(12,22,44,.4)}
+.ts i{display:block;width:100%;height:30px;border-radius:9px;margin-bottom:9px}
+.ts span{font-size:12.5px;color:var(--txt-2)}
+.t1{background:linear-gradient(135deg,#4de3ff,#4fb2ff 50%,#a78bff)}
+.t2{background:linear-gradient(135deg,#c98bff,#a87bff 50%,#ff8be0)}
+.t3{background:linear-gradient(135deg,#ffb35c,#ff9b4f 50%,#ff7f6b)}
+.t4{background:linear-gradient(135deg,#3ee8c0,#2fbf9f 50%,#7fd0a0)}
+.t5{background:linear-gradient(135deg,#ff5e8a,#ff4f7f 50%,#ff8b5e)}
+.t6{background:linear-gradient(135deg,#9fd8ff,#c9d8ff 50%,#e0ecff)}
+.t7{background:linear-gradient(135deg,#ff9dbd,#ff7fb0 50%,#ffb3d9)}
+.t8{background:linear-gradient(135deg,#4de8ff,#2f6fff 50%,#4fa3ff)}
+.t9{background:linear-gradient(135deg,#ffd98a,#f0a83f 50%,#ffe9b3)}
+.t10{background:linear-gradient(135deg,#9fa8ff,#6b5bff 50%,#c9b3ff)}
+
+/* ===== 下载页 ===== */
+.dl-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 0 46px}
+.dl-hero h2{font-size:40px}
+.dl-box{margin-top:34px;padding:34px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.dl-box .big{font-size:26px;font-weight:800;letter-spacing:1px}
+.dl-box .ver-note{margin-top:8px;color:var(--txt-faint);font-size:13.5px}
+.dl-box .btn{margin-top:24px;font-size:17px;padding:16px 42px}
+.dl-note{margin-top:14px;font-size:12.5px;color:var(--txt-faint)}
+.os-row{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;justify-content:center}
+.os-pill{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:12px;font-size:13.5px;color:var(--txt-2);border:1px solid rgba(125,190,255,.16);background:rgba(12,22,44,.4)}
+.os-pill.on{color:var(--txt);border-color:rgba(77,227,255,.5);background:linear-gradient(135deg,rgba(77,227,255,.14),rgba(167,139,255,.1));box-shadow:0 0 18px rgba(77,227,255,.12)}
+.os-pill.on b{color:var(--cyan)}
+.os-pill .d{font-size:10.5px;color:var(--txt-faint);margin-left:2px}
+.timeline{margin-top:46px;display:flex;flex-direction:column;gap:0}
+.tl-row{display:grid;grid-template-columns:120px 30px 1fr;gap:0;align-items:stretch}
+.tl-ver{text-align:right;padding:18px 0;font-size:15px;font-weight:700;color:var(--cyan);position:relative}
+.tl-ver small{display:block;font-size:11px;color:var(--txt-faint);font-weight:400;margin-top:3px}
+.tl-axis{position:relative;display:flex;justify-content:center}
+.tl-axis::before{content:"";position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(77,227,255,.4),transparent)}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);align-self:center;position:relative;z-index:2}
+.tl-body{padding:18px 0 18px 22px}
+.tl-body b{font-size:15.5px;letter-spacing:.5px}
+.tl-body p{margin-top:5px;font-size:13px;color:var(--txt-faint)}
+
+/* ===== 关于页 ===== */
+.about-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+.author-card{padding:34px}
+.author-top{display:flex;align-items:center;gap:18px;margin-bottom:18px}
+.avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,rgba(77,227,255,.28),rgba(167,139,255,.28));display:flex;align-items:center;justify-content:center;position:relative}
+.avatar::before{content:"";width:26px;height:26px;border-radius:50%;border:2.5px solid rgba(255,255,255,.85);position:absolute}
+.avatar::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(77,227,255,.4);animation:breathe 2.6s ease-in-out infinite}
+.author-card b{font-size:20px;letter-spacing:1px}
+.author-card .role{font-size:13px;color:var(--cyan);margin-top:3px}
+.author-card p{font-size:13.5px;color:var(--txt-faint);margin-top:14px}
+.link-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.info-card{padding:30px}
+.info-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid rgba(125,190,255,.08)}
+.info-row:last-child{border-bottom:none}
+.info-row .k{font-size:13.5px;color:var(--txt-2)}
+.info-row .v{font-size:13.5px;color:var(--txt);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-size:11px;padding:2px 9px;border-radius:99px;border:1px solid rgba(77,227,255,.35);color:var(--cyan)}
+.tag.dev{color:var(--txt-faint);border-color:rgba(125,190,255,.16)}
+.qa{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+.qa .it{padding:18px 20px}
+.qa .it b{font-size:14px;color:var(--txt)}
+.qa .it p{margin-top:6px;font-size:13px;color:var(--txt-faint)}
+
+/* ===== 页脚 ===== */
+footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255,.1);text-align:center}
+.f-brand{font-size:15px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,var(--cyan),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.f-slogan{margin-top:6px;font-size:13px;color:var(--txt-faint);letter-spacing:3px}
+.f-meta{margin-top:16px;font-size:12px;color:var(--txt-faint)}
+.f-meta a{margin:0 8px}
+
+/* ===== 响应式 ===== */
+@media (max-width:860px){
+  .nav-links{display:none}
+  .hero h1{font-size:36px;letter-spacing:2px}
+  .hero .slogan{letter-spacing:3px;font-size:16px}
+  .hero-cards,.feat-grid,.about-grid{grid-template-columns:1fr}
+  .tl-row{grid-template-columns:90px 24px 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- 背景 -->
+<div class="stage">
+  <div class="band"></div>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <div class="vig"></div>
+  <div class="grain"></div>
+</div>
+
+<!-- 导航 -->
+<nav class="nav">
+  <div class="nav-in">
+    <div class="brand" onclick="go('home')">
+      <svg viewBox="0 0 64 64" fill="none">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7df3ff"/><stop offset=".5" stop-color="#5b8cff"/><stop offset="1" stop-color="#b38cff"/></linearGradient></defs>
+        <path d="M14 44 32 18l18 26z" stroke="url(#lg)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="32" cy="37" r="5.5" fill="#7df3ff"/>
+      </svg>
+      <b>AOURA</b><span>启动器</span>
+    </div>
+    <div class="nav-links" id="navLinks">
+      <a href="#home" data-p="home" class="on">首页</a>
+      <a href="#features" data-p="features">特性</a>
+      <a href="#download" data-p="download">下载</a>
+      <a href="#about" data-p="about">关于</a>
+    </div>
+    <a class="btn btn-glow nav-cta" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+      立即下载
+    </a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ===== 首页 ===== -->
+  <section class="page on" id="page-home">
+    <div class="hero">
+      <div class="hero-logo">
+        <div class="halo"></div>
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <svg viewBox="0 0 64 64" fill="none">
+          <path d="M14 44 32 18l18 26z" stroke="url(#lg)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="32" cy="37" r="5.5" fill="#7df3ff"/>
+        </svg>
+      </div>
+      <h1>AOURA 启动器</h1>
+      <div class="slogan">每一次启动，都是一场光的旅行</div>
+      <div class="lead">沉浸光效的 Minecraft 启动器 · 功能全面 · 由珉爱制作的开源项目。灵感气泡设计、全量官方版本、加载器底层一键安装、陶瓦 P2P 联机。</div>
+      <div class="hero-cta">
+        <a class="btn btn-glow" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+          立即下载
+        </a>
+        <a class="btn" href="#features"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m5 12 7-7 7 7"/></svg>了解特性</a>
+      </div>
+      <div class="hero-ver">
+        <span class="hv"><i class="dot"></i>最新版本 <b>18.2</b></span>
+        <span class="hv">Windows 已支持</span>
+        <span class="hv">macOS · 鸿蒙 OS 开发中</span>
+      </div>
+      <div class="hero-cards">
+        <div class="glass feat-mini">
+          <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 3c.6 4.5 2.5 6.4 7 7-4.5.6-6.4 2.5-7 7-.6-4.5-2.5-6.4-7-7 4.5-.6 6.4-2.5 7-7z"/></svg></div>
+          <b>鸿蒙级沉浸光效</b>
+          <p>极光光场、流动光带、灵动视效，每处交互动效都经过细腻打磨。</p>
+        </div>
+        <div class="glass feat-mini">
+          <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M12 4v16"/><path d="M4 6h4M4 18h4M16 6h4M16 18h4"/></svg></div>
+          <b>功能全面</b>
+          <p>全量官方版本、加载器底层、模组/存档/光影/整合包管理，一样不少。</p>
+        </div>
+        <div class="glass feat-mini">
+          <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12C19 16.5 12 21 12 21z"/></svg></div>
+          <b>正版与离线账户</b>
+          <p>微软正版 OAuth 登录 + 离线账户，双模式自由切换，数据全本地。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 特性 ===== -->
+  <section class="page" id="page-features">
+    <div class="sec-head">
+      <div class="sec-tag">FEATURES</div>
+      <h2>为光的旅程而生</h2>
+      <div class="sub">一套启动器应有的全部能力，加上鸿蒙 7 同源的沉浸光效。</div>
+    </div>
+    <div class="feat-grid">
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 3c.6 4.5 2.5 6.4 7 7-4.5.6-6.4 2.5-7 7-.6-4.5-2.5-6.4-7-7 4.5-.6 6.4-2.5 7-7z"/></svg></div>
+        <b>液态玻璃 · 灵动视效</b>
+        <p>参照 HarmonyOS 7 极光「沉浸光感」全新打造：</p>
+        <ul>
+          <li>液态玻璃质感界面：通透模糊、虹彩高光、光晕呼吸</li>
+          <li>启动按钮是会变化的气泡，光影随交互流动</li>
+          <li>页面切换模糊消散入场，dock 弹性回弹</li>
+          <li>预装 20 套主题一键切换</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M12 4v16"/><path d="M4 6h4M4 18h4M16 6h4M16 18h4"/></svg></div>
+        <b>功能全面</b>
+        <p>你能想到的，这里都有：</p>
+        <ul>
+          <li>下载中心：正式版 / 快照版 / 特色版 / 远古版全量</li>
+          <li>版本管理：模组、存档、光影、整合包完整管理</li>
+          <li>资源中心：Modrinth 集成，筛选底层与版本</li>
+          <li>加载器底层：Fabric / Forge / NeoForge / Quilt 一键安装</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12C19 16.5 12 21 12 21z"/></svg></div>
+        <b>账户体系</b>
+        <ul>
+          <li>微软正版 OAuth 登录（设备码流）</li>
+          <li>离线账户自由创建，支持自定义头像</li>
+          <li>离线 / 正版双模式自动识别</li>
+          <li>支持正版引导，购买直达 Xbox 商店</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg></div>
+        <b>下载与底层可靠</b>
+        <ul>
+          <li>镜像 + 官方源双路并发分段加速，快者胜出不卡壳</li>
+          <li>模组页按游戏版本筛选，隔离目录自动跟随所选版本</li>
+          <li>游戏环境（版本/Java/内存/账户）气泡环绕启动键，主页沉浸灵动</li>
+          <li>联机房间气泡：房主居中、成员环绕，加入状态一目了然</li>
+          <li>版本管理支持导入存档与 Modrinth 整合包（自动装加载器）</li>
+          <li>底层依赖保护：随加载器下载的原版自动折叠，防止误删缺主程序</li>
+          <li>资源中心模组名称一键翻译</li>
+          <li>Forge 新版 client 库由安装器 binarypatcher 本地打补丁生成，彻底解决「缺少主程序」</li>
+          <li>Java 多镜像下载：清华 / 南大 / 华为云 / 兰大</li>
+          <li>日志导出一键完成，绿字正常 / 红字异常</li>
+          <li>数据、缓存、日志、Java 全部本地存储</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M9 4.5v15"/></svg></div>
+        <b>预装主题 · 独立日志</b>
+        <p>设置内一键切换，日志配色不受主题影响：</p>
+        <div class="theme-strip">
+          <div class="ts"><i class="t1"></i><span>极光蓝</span></div>
+          <div class="ts"><i class="t2"></i><span>星云紫</span></div>
+          <div class="ts"><i class="t3"></i><span>落日橙</span></div>
+          <div class="ts"><i class="t4"></i><span>翡翠绿</span></div>
+          <div class="ts"><i class="t5"></i><span>绯红焰</span></div>
+          <div class="ts"><i class="t6"></i><span>月光银</span></div>
+          <div class="ts"><i class="t7"></i><span>樱花粉</span></div>
+          <div class="ts"><i class="t8"></i><span>深海蓝</span></div>
+          <div class="ts"><i class="t9"></i><span>鎏金金</span></div>
+          <div class="ts"><i class="t10"></i><span>墨夜黑</span></div>
+        </div>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></div>
+        <b>开源项目 · 持续更新</b>
+        <ul>
+          <li>由珉爱制作，一个持续迭代的开源项目</li>
+          <li>下载版本可自选模组底层与底层版本（或由启动器推荐）</li>
+          <li>离线首登强制设置玩家名与头像，联机身份更规范</li>
+          <li>版本管理：版本库 / 下载中心 / 联机 / 技术说明 / 关于</li>
+          <li>问题反馈直达作者，获取更新一键跳转</li>
+          <li>Windows 完整支持，macOS / 鸿蒙 OS 开发中</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <b>联机 · Terracotta 陶瓦联机</b>
+        <p>基于开源 P2P 方案，与好友一键组网：</p>
+        <ul>
+          <li>创建房间 / 加入房间，房间邀请码一键复制</li>
+          <li>无需公网 IP 与端口映射，P2P 直连</li>
+          <li>与 HMCL / FMCL 等主流启动器跨端互通</li>
+          <li>正版与离线账户均可联机</li>
+        </ul>
+      </div>
+      <div class="glass feat-card">
+        <div class="fi"><svg viewBox="0 0 24 24"><path d="M12 3c.6 4.5 2.5 6.4 7 7-4.5.6-6.4 2.5-7 7-.6-4.5-2.5-6.4-7-7 4.5-.6 6.4-2.5 7-7z"/><path d="M5 17.5 18.5 5"/></svg></div>
+        <b>闪光粒子 · 灵动视效</b>
+        <p>粒子会呼吸、会漂移、会为你绽放：</p>
+        <ul>
+          <li>背景星芒与光点缓缓游弋，闪烁绽放</li>
+          <li>切换页面时按钮粒子四散爆发</li>
+          <li>启动游戏瞬间 44 颗粒子冲天绽放</li>
+          <li>开启的开关、选中的主题卡常驻微光</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 下载 ===== -->
+  <section class="page" id="page-download">
+    <div class="dl-hero">
+      <div class="sec-tag">DOWNLOAD</div>
+      <h2>立即开始光的旅程</h2>
+      <div class="sub">安装包随版本持续更新，下载页由作者统一维护，始终指向最新版本。</div>
+    </div>
+    <div class="glass dl-box">
+      <div class="big">AOURA 启动器 <em style="font-style:normal;color:var(--cyan)">v18.2</em></div>
+      <div class="ver-note">Windows 安装包 · 约 92 MB · 沉浸光效版 · 内置陶瓦联机引擎</div>
+      <a class="btn btn-glow" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+        立即下载
+      </a>
+      <div class="dl-note">点击后前往官方获取更新页 · 若跳转失败请检查网络后重试</div>
+      <div class="os-row">
+        <span class="os-pill on"><b>Windows</b><span class="d">当前支持</span></span>
+        <span class="os-pill">macOS<span class="d">开发中</span></span>
+        <span class="os-pill">鸿蒙 OS<span class="d">开发中</span></span>
+      </div>
+    </div>
+    <div class="sec-head" style="margin-top:54px">
+      <div class="sec-tag">HISTORY</div>
+      <h2>版本历程</h2>
+      <div class="sub">每一次更新，都是一次光效与体验的进化。</div>
+    </div>
+    <div class="timeline">
+      <div class="tl-row"><div class="tl-ver">18.2<small>当前</small></div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>游戏语言支持</b><p>修复安装模组底层（Forge/Fabric/NeoForge）后游戏变为英文的问题：新增「游戏语言」设置（默认简体中文），启动前自动写入游戏语言配置；中文语言文件随资源自动补齐，无需额外下载任何底层，所有版本与模组底层均完整支持中文。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>启动前资源自检补齐</b><p>修复「无法进入游戏」：下载游戏时若个别资源失败不再静默跳过，统一记录并自动重试补齐；启动游戏前自动扫描缺失资源（PCL 同款做法），发现缺失立即从镜像+官方多源补齐，彻底解决启动时缺文件崩溃（NoSuchFileException）。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>测速选源 · 质感气泡 · 20 主题</b><p>下载再提速：新增下载源测速机制，自动挑选响应最快的镜像/官方源作为主源（PCL 同款思路），分段下载单主源推进、失败快速切换，不再出现卡在进度条不动的情况；模组底层安装的安装器与依赖库同样测速选源，大幅降低「网络或文件问题」失败；主页环境气泡全面重做玻璃质感（高光反射、内阴影、光晕呼吸、星尘微光）；主题扩充到 20 套。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">17.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载双源并发 · 环境气泡 · 更稳定</b><p>下载全面提速：分段下载改为镜像 + 官方源同时开跑、快者胜出，慢源不再拖累整段；单段 30 秒超时保护，彻底告别「卡壳/无法下载」；下载失败自动写入日志便于排查。主页游戏环境（版本 / Java / 内存 / 账户）改为与启动键同款液态玻璃气泡，环绕在启动键四周；资源中心移除翻译入口，回归清爽。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">16.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>联机气泡 · 底层保护 · 15 主题</b><p>联机页新增房间气泡：创建房间后房主居中、成员环绕，好友加入即可见；下载带模组底层的版本不再出现「重复」的两个版本——随加载器自动下载的原版被折叠为「底层依赖」且不可单独删除，彻底杜绝误删导致主程序缺失；主题扩充到 15 套；整体交互与联机稳定性进一步优化。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">14.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>灵感气泡 · Forge 真补丁 · 下载提速</b><p>主页回归清爽：快捷入口气泡移除，游戏环境面板改为与启动按钮同款的气泡形态；版本下拉在屏幕中央弹出；首登流程修复为先选正版/离线、确认离线后再设置头像；Forge 26.x 彻底修复——不再用 universal 冒用 client 库，改由安装器 binarypatcher 对原版 jar 本地打补丁生成 patched client（.forge_patched_minecraft），已验证可启动；Java 安装完成后引导条立即消失；分段并发下载升级 12 段、阈值 1MB、失败自动回退整文件；版本管理支持导入存档与 Modrinth 整合包（自动装加载器）；资源中心新增模组名称翻译；关于页注明底层引擎与采用的开源项目；便携版永久停止更新。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">13.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载加速 · 模组按版本 · 加载器修复</b><p>下载全面提速：大文件多线程分段并发，失败自动回退整文件；模组页面按游戏版本筛选已安装模组；修复新版 Forge 引用不存在的 client 库导致的「缺少主程序」，自动回退 universal 并兼容写入；Java 多源优先南大 / 华为云 / 兰大。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">12.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>液态玻璃 · 灵动视效 · 沉浸光感</b><p>全新液态玻璃界面与灵动视效；启动按钮变为会变化的气泡；主页版本切换改为下拉；预装 10 套主题；下载版本可自选模组底层与底层版本（或由启动器推荐）；离线首登强制设置玩家名与头像；全新安装程序界面。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">11.7</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>加载器安装全面重做</b><p>Forge / NeoForge 改为镜像预置全部库文件并直接生成版本，免运行安装器；Fabric 解析官方 meta 完整 profile；启动引擎新增继承链递归解析，彻底解决「模组底层下载失败」。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">11.6</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>主页快捷切换 + 便携版</b><p>主页启动按钮下方新增版本快捷切换；新增便携版单文件 exe，数据全部跟随启动器目录。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">11.5</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>版本管理加载器徽章 + 多源下载</b><p>版本管理标注每个版本的模组底层类型；加载器库文件多源轮询下载，进度条标注当前阶段；Java 缺失自动引导安装。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">11.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>联机教程 + 官网焕新</b><p>应用内使用教程新增第 9 步联机详解与联机 FAQ；官方网站同步更新联机特性、时间轴与体验优化。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">11.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>联机功能上线 · Terracotta 陶瓦联机</b><p>集成开源 P2P 联机引擎，创建房间 / 加入房间一键完成，无需公网 IP，与 HMCL / FMCL 等主流启动器跨端互通。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">10.3</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>闪光粒子系统</b><p>背景星芒游弋闪烁，切换页面按钮粒子爆发，启动瞬间 44 颗粒子绽放，开启的选项常驻微光。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">10.2</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>日志独立配色 + 官方网站上线</b><p>日志配色不受主题影响，正常运行绿字 / 异常红字，问题修复更直观；官方宣传页同步上线。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">10.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>日志一键导出</b><p>日志面板新增导出按钮，支持导出完整日志用于问题排查。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">10.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>主题系统 + 启动页全面升级</b><p>预装 5 套配色主题一键切换；启动页光点汇聚、双光弧、涟漪波纹，灵动视效全面优化。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">9.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>主页重构 · 极光配色</b><p>启动键居中布局，下方功能区分栏；极光青紫配色全面提亮，沉浸光感强化。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">7.9</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>全量版本回归</b><p>下载中心展示全部官方版本（正式 / 快照 / 特色 / 远古），教程应用内自写。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">5.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>联机 · 技术说明 · 关于</b><p>底部栏新增联机页、技术说明页、独立账户页与关于页。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">4.x</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>启动器里程碑</b><p>微软正版登录、离线账户、Java 多镜像、demo 规则修复、沉浸光效体系成形。</p></div></div>
+    </div>
+  </section>
+
+  <!-- ===== 关于 ===== -->
+  <section class="page" id="page-about">
+    <div class="sec-head">
+      <div class="sec-tag">ABOUT</div>
+      <h2>关于 AOURA</h2>
+      <div class="sub">一个由个人制作、持续迭代的开源启动器项目。</div>
+    </div>
+    <div class="about-grid">
+      <div class="glass author-card">
+        <div class="author-top">
+          <div class="avatar"></div>
+          <div>
+            <b>珉爱</b>
+            <div class="role">AOURA 启动器作者 · 独立开发者</div>
+          </div>
+        </div>
+        <p>你好，我是珉爱。AOURA 启动器由我一个人持续开发与维护——从功能全面完善，到视觉对标鸿蒙 7 的沉浸光效，每一步都希望让启动这件事，变成一场光的旅行。你的每一次反馈，都会让 AOURA 变得更好。</p>
+        <div class="link-row">
+          <a class="btn" href="https://ifdian.net/a/minaiyu" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6.5 5.5 5.5 0 0 1 21.5 12C19 16.5 12 21 12 21z"/></svg>
+            爱发电 · 支持作者
+          </a>
+          <a class="btn" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+            获取更新
+          </a>
+        </div>
+      </div>
+      <div class="glass info-card">
+        <div class="info-row"><span class="k">支持系统</span><span class="v">Windows <span class="tag">当前支持</span></span></div>
+        <div class="info-row"><span class="k">开发中</span><span class="v">macOS · 鸿蒙 OS</span></div>
+        <div class="info-row"><span class="k">项目性质</span><span class="v">开源项目 · 免费使用</span></div>
+        <div class="info-row"><span class="k">下载源</span><span class="v">BMCLAPI / Mojang 官方</span></div>
+        <div class="info-row"><span class="k">作者主页</span><span class="v">珉爱制作 · 爱发电</span></div>
+      </div>
+    </div>
+    <div class="sec-head" style="margin-top:46px">
+      <div class="sec-tag">FAQ</div>
+      <h2>常见问题</h2>
+    </div>
+    <div class="qa">
+      <div class="glass qa it"><b>日志里为什么正常是绿色、异常是红色？</b><p>日志配色是独立的，不受界面主题影响。正常运行显示绿色字体，出现异常显示红色字体，方便快速定位问题；日志面板支持一键导出。</p></div>
+      <div class="glass qa it"><b>游戏变成试玩版（demo）怎么办？</b><p>请更新到 4.0.8 及以上版本。旧版本可能在启动参数中误注入 --demo 导致试玩版；当前版本已修复规则引擎。</p></div>
+      <div class="glass qa it"><b>Java 下载失败怎么办？</b><p>启动器内置清华、南大、华为云、兰大四个镜像自动轮询回退，可手动选择下载 Java 8 / 11 / 17 / 21 / 25。</p></div>
+      <div class="glass qa it"><b>数据存放在哪里？</b><p>所有配置、缓存、日志、Java 与游戏文件默认存放在启动器安装目录下，可在设置中自定义位置。</p></div>
+      <div class="glass qa it"><b>联机需要公网 IP 吗？和好友不同启动器能玩吗？</b><p>不需要。AOURA 集成开源项目 Terracotta 陶瓦联机（P2P 方案），创建房间生成邀请码，好友在 AOURA / HMCL / FMCL 等任意支持陶瓦的启动器中输入邀请码即可加入，无需端口映射。</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="f-brand">AOURA 启动器</div>
+  <div class="f-slogan">每一次启动，都是一场光的旅行</div>
+  <div class="f-meta">
+    © 2026 AOURA · 由珉爱制作 · 开源项目 ·
+    <a href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">获取更新</a>
+    <a href="https://ifdian.net/a/minaiyu" target="_blank" rel="noopener">爱发电</a>
+  </div>
+</footer>
+
+<script>
+const PAGES = ['home','features','download','about'];
+function go(p){
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('on'));
+  document.getElementById('page-' + p).classList.add('on');
+  document.querySelectorAll('#navLinks a').forEach(a => a.classList.toggle('on', a.dataset.p === p));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.addEventListener('hashchange', () => {
+  const h = location.hash.replace('#','');
+  if (PAGES.includes(h)) go(h);
+});
+(function init(){ if (PAGES.includes(location.hash.replace('#',''))) go(location.hash.replace('#','')); })();
+</script>
+</body>
+</html>

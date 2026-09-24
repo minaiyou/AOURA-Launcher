@@ -1,0 +1,71 @@
+{
+  "name": "aoura-launcher",
+  "version": "18.2.0",
+  "description": "AOURA 启动器 · 由珉爱制作 — 我的世界启动器（v4 沉浸光效重构）",
+  "main": "main.js",
+  "author": "珉爱",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win dir"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "pe-library": "^2.0.1"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16"
+  },
+  "build": {
+    "appId": "com.aoura.launcher",
+    "productName": "AOURA启动器",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AOURA启动器"
+    },
+    "electronDownload": {
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    },
+    "extraResources": [
+      {
+        "from": "bin/terracotta",
+        "to": "terracotta"
+      }
+    ],
+    "portable": {
+      "artifactName": "AOURA启动器-便携版-${version}.exe"
+    }
+  }
+}
