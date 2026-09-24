@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: file:; script-src 'self'; connect-src https:">
+<title>AOURA 启动器 · 由珉爱制作</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 启动页 Splash v10 -->
+<div class="splash" id="splash">
+  <div class="splash-stage">
+    <div class="s-orb so1"></div>
+    <div class="s-orb so2"></div>
+    <div class="s-orb so3"></div>
+    <div class="s-part" id="sPart"></div>
+    <div class="s-flare f1"></div>
+    <div class="s-flare f2"></div>
+  </div>
+  <div class="splash-logo">
+    <div class="sl-ring r1"></div>
+    <div class="sl-ring r2"></div>
+    <div class="sl-ring r3"></div>
+    <div class="sl-arc a1"></div>
+    <div class="sl-arc a2"></div>
+    <div class="sl-core">
+      <svg viewBox="0 0 64 64" fill="none">
+        <defs>
+          <linearGradient id="splg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="var(--splg1)"/><stop offset=".5" stop-color="var(--splg2)"/><stop offset="1" stop-color="var(--splg3)"/>
+          </linearGradient>
+        </defs>
+        <path d="M14 44 32 18l18 26z" stroke="url(#splg)" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="32" cy="37" r="5" fill="var(--splg1)"/>
+      </svg>
+    </div>
+    <div class="sl-sweep"></div>
+    <div class="sl-halo"></div>
+    <div class="sl-ring w1"></div>
+  </div>
+  <div class="splash-name">
+    <b>AOURA</b><span>启动器</span>
+  </div>
+  <div class="splash-quote" id="splashQuote">每一次启动，都是一场光的旅行</div>
+  <div class="splash-made">由珉爱制作 · AOURA 启动引擎 v18.2 · 基于 Electron</div>
+  <div class="splash-bar"><i id="splashBar"></i></div>
+</div>
+
+<!-- 光效舞台 -->
+<div class="stage">
+  <div class="aurora">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+    <div class="orb o4"></div>
+    <div class="orb o5"></div>
+  </div>
+  <div class="sparkle-bg" id="sparkleBg"></div>
+  <div class="beam"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+  <div class="cursor-glow" id="cursorGlow"></div>
+</div>
+
+<div class="app">
+  <!-- 标题栏 -->
+  <header class="titlebar drag">
+    <div class="brand no-drag">
+      <div class="brand-logo">
+        <svg viewBox="0 0 64 64" fill="none"><path d="M14 44 32 18l18 26z" stroke="url(#lgA)" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="37" r="5" fill="#3ee6ff"/></svg>
+      </div>
+      <span class="brand-en">AOURA</span>
+      <span class="brand-cn">启动器</span>
+      <span class="brand-ver">v18.2</span>
+      <span class="brand-made">由珉爱制作</span>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-status no-drag">
+      <span class="tb-dot" id="netDot"></span>
+      <span id="netText">就绪</span>
+    </div>
+    <div class="win-btns no-drag">
+      <button class="win-btn" id="winMin" title="最小化"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button class="win-btn" id="winMax" title="最大化"><svg viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="1.5"/></svg></button>
+      <button class="win-btn win-close" id="winClose" title="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+  </header>
+
+  <div class="body">
+    <main class="main" id="main">
+
+      <!-- ===== 主页（沉浸光效启动中心）===== -->
+      <section class="view active" id="view-home">
+        <div class="home">
+          <div class="home-top">
+            <div class="home-id">
+              <div class="home-av" id="homeAvatarWrap">
+                <img id="homeAvatarImg" alt="头像">
+                <div class="ha-ring"></div>
+                <div class="ha-pulse"></div>
+              </div>
+              <div class="home-greet">
+                <h1 id="greet">欢迎回来</h1>
+                <div class="sub"><span id="homeQuote">每一次启动，都是一场光的旅行</span> · <b id="todayStr"></b></div>
+              </div>
+            </div>
+            <div class="java-guide" id="javaGuideBarHome" style="display:none">
+              <svg viewBox="0 0 24 24"><path d="M12 8.5v5"/><path d="M12 16.5h.01"/><path d="M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19z"/></svg>
+              <div><b>未检测到 Java 运行环境</b> · 请前往「设置 → Java 环境」自动下载 Java，或手动指定路径</div>
+              <button class="btn btn-mini">前往设置</button>
+            </div>
+            <div class="home-env">
+              <span class="chip" id="envChip"><i class="cd"></i>环境检测中…</span>
+            </div>
+          </div>
+
+          <div class="home-mid">
+            <div class="play-aura" aria-hidden="true"></div>
+            <div class="env-bubbles" aria-hidden="false">
+              <button class="env-bub bub-ver" id="envBubVer" title="切换游戏版本">
+                <span class="eb-ico"><svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/><path d="M12 12.2v9"/></svg></span>
+                <b id="statVer">—</b><i>游戏版本</i>
+              </button>
+              <div class="env-bub bub-java">
+                <span class="eb-ico"><svg viewBox="0 0 24 24"><path d="M8.5 19.5c-.8-.6.4-1.4.4-1.4M14.5 19.2c-1-.4.6-1.6.6-1.6"/><path d="M8 16.2c4.5-1 5.5 2.8 9.5 1"/><path d="M12.4 11.2c.7.8-.2 1.5-.2 2.5M9.8 10.4c2.6-.6 4.8-1.6 7-.4"/></svg></span>
+                <b id="statJava">—</b><i>Java</i>
+              </div>
+              <div class="env-bub bub-mem">
+                <span class="eb-ico"><svg viewBox="0 0 24 24"><path d="M5 6.5h14v9H5z"/><path d="M9 15.5v2M12 15.5v3M15 15.5v2"/></svg></span>
+                <b id="statMem">—</b><i>内存</i>
+              </div>
+              <div class="env-bub bub-acc">
+                <span class="eb-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>
+                <b id="statAcc">—</b><i>账户</i>
+              </div>
+            </div>
+            <div class="hs-play">
+              <button class="mega-play" id="btnPlay" disabled>
+                <span class="mp-ring r1"></span>
+                <span class="mp-ring r2"></span>
+                <span class="mp-ring r3"></span>
+                <span class="mp-sheen"></span>
+                <span class="mp-ico">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+                </span>
+                <span class="mp-txt" id="playTxt">启动游戏</span>
+              </button>
+              <button class="btn-stop" id="btnStop" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>
+                停止游戏
+              </button>
+              <!-- 版本快速切换：◀ ▶ 一键切换上一个/下一个版本 -->
+              <div class="ver-select" id="verSelect">
+                <svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/><path d="M12 12.2v9"/></svg>
+                <div class="vs-info">
+                  <div class="vs-name" id="curVerName">未选择版本</div>
+                  <div class="vs-meta" id="curVerMeta"><span>请先在下载中心安装一个版本</span></div>
+                </div>
+                <svg class="vs-arrow" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></svg>
+              </div>
+            </div>
+            <div class="home-hint">
+              <svg viewBox="0 0 24 24"><path d="M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19z"/><path d="M12 8.5v5"/><path d="M12 16h.01"/></svg>
+              <span>选择版本后点击中央按钮即可开始游戏</span>
+            </div>
+          </div>
+
+          <div class="home-bottom">
+            <div class="hr-slogan">
+              <div class="hr-light"></div>
+              <b>AOURA</b>
+              <span id="hrQuote">每一次启动，都是一场光的旅行</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 版本管理 ===== -->
+      <section class="view" id="view-versions">
+        <div class="page-head">
+          <div>
+            <h1>版本管理 <span class="en-tag">VERSIONS</span></h1>
+            <div class="sub">共 <b id="verCount">0</b> 个已安装版本</div>
+          </div>
+          <button class="btn btn-glow" id="btnGoDownload">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            下载新版本
+          </button>
+        </div>
+        <div class="java-guide" id="javaGuideBar" style="display:none">
+          <svg viewBox="0 0 24 24"><path d="M12 8.5v5"/><path d="M12 16.5h.01"/><path d="M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19z"/></svg>
+          <div><b>未检测到 Java 运行环境</b> · 下载好的版本需要 Java 才能启动，请前往「设置 → Java 环境」自动下载，或手动指定 Java 路径</div>
+          <button class="btn btn-mini">前往设置</button>
+        </div>
+        <div class="vr-toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+            <input type="text" id="verSearch" placeholder="搜索版本，如 1.21 / 1.8.9">
+          </div>
+          <span class="chip on" data-filter="all">全部</span>
+          <span class="chip" data-filter="release">正式版</span>
+          <span class="chip" data-filter="snapshot">快照</span>
+          <span class="chip" data-filter="old">远古</span>
+        </div>
+        <div class="vr-manage">
+          <button class="vm-btn" data-mgr="mods">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/></svg>
+            <b>模组管理</b><span>启用 / 禁用 / 删除模组</span>
+          </button>
+          <button class="vm-btn" data-mgr="saves">
+            <svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4z"/><path d="M4 9.5h16"/><path d="M8 5.5v13"/></svg>
+            <b>存档管理</b><span>查看 / 打开 / 删除存档</span>
+          </button>
+          <button class="vm-btn" data-mgr="shaderpacks">
+            <svg viewBox="0 0 24 24"><path d="M4 17.5 8.5 6l3 8 2.5-5.5L17 17.5z"/><circle cx="16.5" cy="6.5" r="1.6"/></svg>
+            <b>光影管理</b><span>查看 / 打开 / 删除光影包</span>
+          </button>
+          <button class="vm-btn" data-mgr="packs">
+            <svg viewBox="0 0 24 24"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5"/><path d="M12 12v9"/></svg>
+            <b>整合包管理</b><span>导入整合包 / 管理版本</span>
+          </button>
+        </div>
+        <div class="vr-list" id="vrList"></div>
+      </section>
+
+      <!-- ===== 下载中心 ===== -->
+      <section class="view" id="view-download">
+        <div class="page-head">
+          <div>
+            <h1>下载中心 <span class="en-tag">DOWNLOAD</span></h1>
+            <div class="sub" id="dlSub">正在获取版本清单…</div>
+          </div>
+          <div class="head-chips">
+            <span class="chip" id="mirrorChip">下载源：BMCLAPI 加速镜像</span>
+          </div>
+        </div>
+        <div class="dl-filter">
+          <span class="chip on" data-dl="release">正式版</span>
+          <span class="chip" data-dl="snapshot">快照版</span>
+          <span class="chip" data-dl="special">特色版</span>
+          <span class="chip" data-dl="old">远古版</span>
+        </div>
+        <div class="dl-note" id="dlNote">全部官方版本均可下载游玩：正式版 · 快照版 · 特色版（愚人节等）· 远古版，拒绝试玩版</div>
+        <div class="dl-grid" id="dlGrid"></div>
+        <div class="dl-more" id="dlMoreWrap">
+          <button class="btn btn-glow" id="dlMoreBtn">加载更多版本</button>
+          <span class="dl-more-info" id="dlMoreInfo"></span>
+        </div>
+
+      </section>
+
+      <!-- ===== 资源中心 ===== -->
+      <section class="view" id="view-resources">
+        <div class="page-head">
+          <div>
+            <h1>资源中心 <span class="en-tag">MODRINTH</span></h1>
+            <div class="sub">模组 · 光影 · 材质包 · 整合包，来自 Modrinth 开源社区</div>
+          </div>
+          <div class="head-chips">
+            <button class="btn btn-glow" id="btnMcWiki">
+              <svg viewBox="0 0 24 24"><path d="M4.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+              MC 百科 · mcmod.cn
+            </button>
+          </div>
+        </div>
+        <div class="vr-toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+            <input type="text" id="rsSearch" placeholder="搜索资源，如 sodium / seus / faithful">
+          </div>
+          <button class="btn btn-glow" id="rsGo">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+            搜索
+          </button>
+        </div>
+        <div class="rs-tabs">
+          <span class="chip on" data-rs="mod">模组</span>
+          <span class="chip" data-rs="shader">光影</span>
+          <span class="chip" data-rs="resourcepack">材质包</span>
+          <span class="chip" data-rs="modpack">整合包</span>
+        </div>
+        <div class="rs-filter">
+          <div class="rsf-item">
+            <span class="rsf-label">游戏版本</span>
+            <select id="rsVersion">
+              <option value="all">全部版本</option>
+              <option value="1.21.5">1.21.5</option>
+              <option value="1.21.4">1.21.4</option>
+              <option value="1.21.1">1.21.1</option>
+              <option value="1.21">1.21</option>
+              <option value="1.20.4">1.20.4</option>
+              <option value="1.20.1">1.20.1</option>
+              <option value="1.19.4">1.19.4</option>
+              <option value="1.19.2">1.19.2</option>
+              <option value="1.18.2">1.18.2</option>
+              <option value="1.17.1">1.17.1</option>
+              <option value="1.16.5">1.16.5</option>
+              <option value="1.15.2">1.15.2</option>
+              <option value="1.14.4">1.14.4</option>
+              <option value="1.12.2">1.12.2</option>
+              <option value="1.8.9">1.8.9</option>
+              <option value="1.7.10">1.7.10</option>
+            </select>
+          </div>
+          <div class="rsf-item" id="rsfLoaderWrap">
+            <span class="rsf-label">支持的底层</span>
+            <select id="rsLoader">
+              <option value="all">全部加载器</option>
+              <option value="fabric">Fabric</option>
+              <option value="forge">Forge</option>
+              <option value="neoforge">NeoForge</option>
+              <option value="quilt">Quilt</option>
+            </select>
+          </div>
+          <div class="rsf-hint">筛选后点击搜索 · 卡片直接展示图标、支持版本与加载器</div>
+        </div>
+        <div class="rs-grid" id="rsGrid"></div>
+
+        <!-- 资源详情抽屉 -->
+        <div class="rs-mask" id="rsMask"></div>
+        <aside class="rs-detail" id="rsDetail">
+          <div class="rsd-head">
+            <div class="rsd-icon" id="rsdIcon"></div>
+            <div class="rsd-titles">
+              <div class="rsd-name" id="rsdName"></div>
+              <div class="rsd-meta" id="rsdMeta"></div>
+            </div>
+            <button class="rsd-close" id="rsdClose" title="关闭">
+              <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div class="rsd-body" id="rsdBody"></div>
+        </aside>
+      </section>
+
+      <!-- ===== 模组 ===== -->
+      <section class="view" id="view-mods">
+        <div class="page-head">
+          <div>
+            <h1>模组 <span class="en-tag">MODS & LOADERS</span></h1>
+            <div class="sub">安装加载器底层 · 管理已安装模组</div>
+          </div>
+          <div class="head-chips">
+            <button class="btn btn-mini" id="btnOpenModsDir">
+              <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+              打开模组文件夹
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card ld-card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/><path d="m9 11.8 2.2 2.2L15.5 9.5"/></svg>
+            <span class="lt">安装模组加载器</span>
+            <span class="qt-count">一键安装 Fabric / Forge / NeoForge 加载器</span>
+          </div>
+          <div class="ld-row">
+            <div class="ld-field">
+              <label>游戏版本</label>
+              <select id="ldMcSel"><option value="">—</option></select>
+            </div>
+            <div class="ld-field">
+              <label>加载器类型</label>
+              <div class="ld-types" id="ldTypes">
+                <span class="chip on" data-ld="fabric">Fabric</span>
+                <span class="chip" data-ld="forge">Forge</span>
+                <span class="chip" data-ld="neoforge">NeoForge</span>
+              </div>
+            </div>
+            <div class="ld-field">
+              <label>加载器版本</label>
+              <select id="ldVerSel"><option value="">先选择游戏版本</option></select>
+            </div>
+            <div class="ld-field ld-act">
+              <button class="btn btn-primary" id="btnInstallLoader">
+                <svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/><path d="m9 11.8 2.2 2.2L15.5 9.5"/></svg>
+                安装加载器
+              </button>
+            </div>
+          </div>
+          <div class="ld-progress" id="ldProgress" style="display:none">
+            <div class="ldp-label" id="ldpLabel">准备中…</div>
+            <div class="pbar"><div class="pb-fill" id="ldpBar" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="glass-card mods-card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/></svg>
+            <span class="lt">已安装模组</span>
+            <span class="mods-ver">
+              <label>游戏版本</label>
+              <select id="modsVerSel"><option value="">选择版本…</option></select>
+            </span>
+            <button class="btn btn-mini" id="btnRefreshMods">
+              <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+              刷新
+            </button>
+          </div>
+          <div class="mods-list" id="modsList"></div>
+        </div>
+      </section>
+
+      <!-- ===== 设置 ===== -->
+      <section class="view" id="view-settings">
+        <div class="page-head">
+          <div>
+            <h1>设置 <span class="en-tag">SETTINGS</span></h1>
+            <div class="sub">个性化你的 AOURA 启动体验</div>
+          </div>
+        </div>
+        <div class="st-wrap">
+
+          <div class="glass-card st-sec">
+            <div class="st-head">
+              <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>
+              <h3>启动设置</h3>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">游戏语言</div>
+                <div class="st-desc">启动前自动写入游戏语言（中文随资源自动补齐，无需额外下载底层）</div>
+              </div>
+              <div class="st-ctrl">
+                <select id="langSel" class="st-select">
+                  <option value="zh_cn">简体中文</option>
+                  <option value="en_us">English</option>
+                </select>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">分配内存</div>
+                <div class="st-desc">为游戏分配运行内存，建议 4GB 及以上</div>
+              </div>
+              <div class="st-ctrl range-wrap">
+                <input type="range" id="memRange" min="1024" max="16384" step="512" value="4096">
+                <span class="range-val" id="memVal">4 GB</span>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">Java 运行时</div>
+                <div class="st-desc" id="javaSelDesc">正在检测本机 Java…</div>
+              </div>
+              <div class="st-ctrl">
+                <select id="javaSel"></select>
+                <button class="btn btn-mini" id="btnJavaRefresh">
+                  <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+                  重新检测
+                </button>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">自动下载 Java</div>
+                <div class="st-desc" id="javaAvailDesc">下载至启动器安装目录下的 java 文件夹</div>
+              </div>
+              <div class="st-ctrl" id="javaAvailWrap"></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">JVM 参数</div>
+                <div class="st-desc">额外的 Java 虚拟机参数，用空格分隔（如 -XX:+UseG1GC）</div>
+              </div>
+              <div class="st-ctrl st-wide">
+                <input type="text" id="jvmArgs" placeholder="-XX:+UseG1GC -XX:MaxGCPauseMillis=50">
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">游戏参数</div>
+                <div class="st-desc">额外传给游戏的参数，用空格分隔（如 --fullscreen）</div>
+              </div>
+              <div class="st-ctrl st-wide">
+                <input type="text" id="gameArgs" placeholder="--fullscreen">
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">版本隔离</div>
+                <div class="st-desc">每个版本使用独立的存档 / 模组 / 配置目录</div>
+              </div>
+              <div class="st-ctrl"><div class="switch" id="swIsolation" role="switch" aria-checked="false" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">启动后关闭启动器</div>
+                <div class="st-desc">游戏成功启动后自动关闭 AOURA 窗口</div>
+              </div>
+              <div class="st-ctrl"><div class="switch" id="swCloseAfter" role="switch" aria-checked="false" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">游戏目录</div>
+                <div class="st-desc" id="gameDirDesc">.minecraft 文件夹位置</div>
+              </div>
+              <div class="st-ctrl">
+                <button class="btn" id="btnPickDir">
+                  <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+                  浏览…
+                </button>
+                <button class="btn btn-mini" id="btnResetDir">恢复默认</button>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">数据与缓存位置</div>
+                <div class="st-desc" id="dataDirDesc">配置 · 缓存 · 日志 · Java 均位于启动器安装目录下</div>
+              </div>
+              <div class="st-ctrl">
+                <button class="btn btn-mini" id="btnOpenDataDir">
+                  <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+                  打开文件夹
+                </button>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">下载源</div>
+                <div class="st-desc">BMCLAPI 国内镜像或 Mojang 官方源，自动回退</div>
+              </div>
+              <div class="st-ctrl">
+                <select id="mirrorSel">
+                  <option value="bmclapi">BMCLAPI 镜像（国内加速 · 推荐）</option>
+                  <option value="mojang">Mojang 官方源</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card st-sec">
+            <div class="st-head">
+              <svg viewBox="0 0 24 24"><path d="M12 3c.6 4.5 2.5 6.4 7 7-4.5.6-6.4 2.5-7 7-.6-4.5-2.5-6.4-7-7 4.5-.6 6.4-2.5 7-7z"/></svg>
+              <h3>外观 · 沉浸光效</h3>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">沉浸光效</div>
+                <div class="st-desc">流动光带、扫光光束与辉光（鸿蒙 7 风格）</div>
+              </div>
+              <div class="st-ctrl"><div class="switch on" id="swLight" role="switch" aria-checked="true" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">极光光场</div>
+                <div class="st-desc">背景极光缓慢流动，营造沉浸氛围</div>
+              </div>
+              <div class="st-ctrl"><div class="switch on" id="swAurora" role="switch" aria-checked="true" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">光标光效</div>
+                <div class="st-desc">柔和光晕跟随鼠标轻缓移动</div>
+              </div>
+              <div class="st-ctrl"><div class="switch on" id="swCursor" role="switch" aria-checked="true" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">面板磨砂</div>
+                <div class="st-desc">面板与底部栏使用磨砂玻璃质感</div>
+              </div>
+              <div class="st-ctrl"><div class="switch on" id="swBlur" role="switch" aria-checked="true" tabindex="0"></div></div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">主题配色</div>
+                <div class="st-desc">预装 20 套配色主题，点击卡片即时切换</div>
+              </div>
+            </div>
+            <div class="theme-grid" id="themeGrid">
+              <button class="th-card on" data-theme="aurora" title="极光蓝">
+                <span class="th-swatch sw-aurora"></span>
+                <span class="th-name">极光蓝</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="nebula" title="星云紫">
+                <span class="th-swatch sw-nebula"></span>
+                <span class="th-name">星云紫</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="sunset" title="落日橙">
+                <span class="th-swatch sw-sunset"></span>
+                <span class="th-name">落日橙</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="emerald" title="翡翠绿">
+                <span class="th-swatch sw-emerald"></span>
+                <span class="th-name">翡翠绿</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="crimson" title="绯红焰">
+                <span class="th-swatch sw-crimson"></span>
+                <span class="th-name">绯红焰</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="moonlight" title="月光银">
+                <span class="th-swatch sw-moonlight"></span>
+                <span class="th-name">月光银</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="sakura" title="樱花粉">
+                <span class="th-swatch sw-sakura"></span>
+                <span class="th-name">樱花粉</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="deepsea" title="深海蓝">
+                <span class="th-swatch sw-deepsea"></span>
+                <span class="th-name">深海蓝</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="golden" title="鎏金金">
+                <span class="th-swatch sw-golden"></span>
+                <span class="th-name">鎏金金</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="midnight" title="墨夜黑">
+                <span class="th-swatch sw-midnight"></span>
+                <span class="th-name">墨夜黑</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="frost" title="霜雪白">
+                <span class="th-swatch sw-frost"></span>
+                <span class="th-name">霜雪白</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="violet" title="紫罗兰">
+                <span class="th-swatch sw-violet"></span>
+                <span class="th-name">紫罗兰</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="ocean" title="海盐青">
+                <span class="th-swatch sw-ocean"></span>
+                <span class="th-name">海盐青</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="rosegold" title="玫瑰金">
+                <span class="th-swatch sw-rosegold"></span>
+                <span class="th-name">玫瑰金</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="galaxy" title="星尘银">
+                <span class="th-swatch sw-galaxy"></span>
+                <span class="th-name">星尘银</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="sunrise" title="晨曦金">
+                <span class="th-swatch sw-sunrise"></span>
+                <span class="th-name">晨曦金</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="mint" title="薄荷绿">
+                <span class="th-swatch sw-mint"></span>
+                <span class="th-name">薄荷绿</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="ruby" title="宝石红">
+                <span class="th-swatch sw-ruby"></span>
+                <span class="th-name">宝石红</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="sky" title="晴空蓝">
+                <span class="th-swatch sw-sky"></span>
+                <span class="th-name">晴空蓝</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+              <button class="th-card" data-theme="amber" title="琥珀橙">
+                <span class="th-swatch sw-amber"></span>
+                <span class="th-name">琥珀橙</span>
+                <span class="th-check"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 账户 ===== -->
+      <section class="view" id="view-account">
+        <div class="page-head">
+          <div>
+            <h1>账户 <span class="en-tag">ACCOUNT</span></h1>
+            <div class="sub">管理你的游戏身份与登录方式</div>
+          </div>
+        </div>
+        <div class="st-wrap">
+          <div class="glass-card st-sec">
+            <div class="st-head">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c1.4-3.4 4.2-5.2 7.5-5.2s6.1 1.8 7.5 5.2"/></svg>
+              <h3>账户</h3>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">离线账户名</div>
+                <div class="st-desc">以离线模式进入游戏时使用的玩家名（仅支持英文/数字/下划线）</div>
+              </div>
+              <div class="st-ctrl">
+                <input type="text" id="offlineName" value="Player" maxlength="16">
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">头像</div>
+                <div class="st-desc">上传自定义头像，将显示在启动主页与底部栏</div>
+              </div>
+              <div class="st-ctrl st-avatar">
+                <div class="avatar avatar-lg" id="avPreviewWrap">
+                  <img id="avPreviewImg" alt="">
+                </div>
+                <button class="btn btn-mini" id="btnUploadAvatar">
+                  <svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="m7.5 9.5 4.5-4.5 4.5 4.5"/><path d="M4 17.5v1.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg>
+                  上传
+                </button>
+                <button class="btn btn-mini" id="btnRemoveAvatar">移除</button>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">账户模式</div>
+                <div class="st-desc" id="authModeDesc">当前使用离线账户（免费直接游玩）</div>
+              </div>
+              <div class="st-ctrl">
+                <span class="badge" id="authModeBadge">离线</span>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">微软正版账户</div>
+                <div class="st-desc" id="msDesc">登录 Microsoft 账户，多人联机与皮肤，与官方一致</div>
+              </div>
+              <div class="st-ctrl" id="msCtrl">
+                <button class="btn" id="btnMsLogin">
+                  <svg viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 5.6.4l2.6-2.6a4 4 0 0 0-5.6-5.6l-1.4 1.4"/><path d="M14 10.5a4 4 0 0 0-5.6-.4l-2.6 2.6a4 4 0 0 0 5.6 5.6l1.3-1.4"/></svg>
+                  使用微软账户登录
+                </button>
+              </div>
+            </div>
+            <div class="st-row" id="msClientRow">
+              <div class="st-info">
+                <div class="st-name">应用 Client ID</div>
+                <div class="st-desc">第三方启动器登录微软账户所需的应用 ID（注册一次即可）</div>
+              </div>
+              <div class="st-ctrl st-wide" style="display:flex;gap:8px;align-items:center">
+                <input type="text" id="msClientId" placeholder="Azure 应用 Client ID（可选）">
+                <button class="btn btn-mini" id="btnMsClientSave">
+                  <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
+                  保存
+                </button>
+              </div>
+            </div>
+            <div class="st-row" id="msHowRow">
+              <div class="st-info">
+                <div class="st-name">如何获取 Client ID</div>
+                <div class="st-desc">微软官方许可的行业做法：注册 Azure 应用 → 复制应用程序（客户端）ID</div>
+              </div>
+              <div class="st-ctrl">
+                <button class="btn btn-mini" id="btnMsGuide">
+                  <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+                  注册指南
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 联机 ===== -->
+      <section class="view" id="view-multiplayer">
+        <div class="page-head">
+          <div>
+            <h1>联机 <span class="en-tag">MULTIPLAYER</span></h1>
+            <div class="sub">与好友一同冒险 · 由 Terracotta 陶瓦联机提供支持</div>
+          </div>
+          <div class="mp-engine" id="mpEngine">
+            <span class="mp-led" id="mpLed"></span>
+            <span id="mpEngineTxt">联机引擎未开启</span>
+          </div>
+        </div>
+        <div class="mp-wrap">
+          <div class="mp-choose" id="mpChoose">
+            <div class="glass-card mp-mode host" id="mpHostMode">
+              <div class="mp-ico">
+                <svg viewBox="0 0 24 24"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z"/></svg>
+              </div>
+              <h3>创建房间 · 房主</h3>
+              <p>开启联机引擎，生成邀请码，与好友畅玩同一个世界。无需公网 IP，P2P 直连。</p>
+              <button class="mp-btn host" id="mpCreateBtn">创建房间</button>
+            </div>
+            <div class="glass-card mp-mode guest" id="mpGuestMode">
+              <div class="mp-ico">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <h3>加入房间 · 房客</h3>
+              <p>输入房主提供的邀请码，通过陶瓦网络加入好友的世界，跨启动器互通。</p>
+              <div class="mp-input-row">
+                <input id="mpCodeInput" placeholder="U/XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocomplete="off">
+                <button class="mp-btn guest" id="mpJoinBtn">加入房间</button>
+              </div>
+              <div class="mp-hint" id="mpCodeHint"></div>
+            </div>
+          </div>
+          <div class="glass-card mp-progress" id="mpProgress" style="display:none">
+            <div class="mp-progress-top">
+              <span class="mp-state-led" id="mpStateLed"></span>
+              <div class="mp-state-txt">
+                <h3 id="mpStateTitle">正在准备…</h3>
+                <p id="mpStateSub"></p>
+              </div>
+              <button class="mp-btn ghost" id="mpCloseBtn">关闭联机</button>
+            </div>
+            <div class="mp-bubbles" id="mpBubbles" style="display:none">
+              <div class="mp-bub-orbit" id="mpBubOrbit"></div>
+              <div class="mp-bub-center" id="mpBubCenter"></div>
+            </div>
+            <div class="mp-room" id="mpRoomBox" style="display:none">
+              <div class="mp-room-label">房间邀请码 · 分享给好友即可加入</div>
+              <div class="mp-room-code" id="mpRoomCode">U/XXXX-XXXX-XXXX-XXXX</div>
+              <button class="mp-btn copy" id="mpCopyBtn">复制邀请码</button>
+            </div>
+            <div class="mp-room" id="mpServerBox" style="display:none">
+              <div class="mp-room-label">服务器地址 · 在游戏「多人游戏」中添加服务器即可进入</div>
+              <div class="mp-room-code" id="mpServerAddr">127.0.0.1:25565</div>
+              <button class="mp-btn copy" id="mpServerCopy">复制服务器地址</button>
+            </div>
+            <div class="mp-steps" id="mpSteps"></div>
+          </div>
+        </div>
+        <div class="mp-credit">联机功能由 <b>Terracotta | 陶瓦联机</b>（AGPL-3.0 · Burning_TNT 开发 · 基于 EasyTier）提供，支持与 HMCL / FMCL 等主流启动器玩家互通 · 如弹出防火墙提示请允许访问</div>
+      </section>
+
+      <!-- ===== 技术说明 ===== -->
+      <section class="view" id="view-tech">
+        <div class="page-head">
+          <div>
+            <h1>技术说明 <span class="en-tag">TECH & GUIDE</span></h1>
+            <div class="sub">关于 AOURA 的实现与支持 · 完整使用教程</div>
+          </div>
+        </div>
+        <div class="tech-tabs">
+          <span class="chip on" data-tab="overview">技术说明</span>
+          <span class="chip" data-tab="tutorial">使用教程</span>
+        </div>
+
+        <!-- 技术说明 -->
+        <div class="tech-body" id="techOverview">
+          <div class="st-wrap">
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M8 8.5 3.5 12 8 15.5"/><path d="M16 8.5 20.5 12 16 15.5"/><path d="m13.5 4.5-3 15"/></svg>
+                <h3>开源项目</h3>
+              </div>
+              <div class="tech-desc">
+                AOURA 启动器是一个<b>开源项目</b>，基于 Electron 构建，代码对社区开放。我们相信启动器技术应当透明、可审计、可持续演进。
+              </div>
+              <div class="tech-list">
+                <div class="tech-item">
+                  <span class="tech-dot" style="background:#3ee6ff"></span>
+                  <div><b>启动引擎</b> · 基于 Electron 33 与 Node.js，跨平台渲染与本地能力</div>
+                </div>
+                <div class="tech-item">
+                  <span class="tech-dot" style="background:#9d7bff"></span>
+                  <div><b>游戏解析</b> · Mojang 版本清单 / BMCLAPI 镜像，规则引擎对齐 HMCL 语义</div>
+                </div>
+                <div class="tech-item">
+                  <span class="tech-dot" style="background:#ffb26b"></span>
+                  <div><b>模组底层</b> · Fabric / Forge / NeoForge 加载器安装与 Modrinth 资源集成</div>
+                </div>
+                <div class="tech-item">
+                  <span class="tech-dot" style="background:#6bffb2"></span>
+                  <div><b>沉浸光效</b> · 鸿蒙 7 风格光带、极光光场与磨砂面板</div>
+                </div>
+              </div>
+            </div>
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"/><path d="M9 6.5v11"/><path d="M9 12h2.5m2.5 0h1.5m-6.5 3h6.5"/></svg>
+                <h3>快速上手</h3>
+              </div>
+              <div class="tech-desc">想快速开始？切换到「使用教程」查看完整图文步骤；也可以直接看下面的 7 步速览。</div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div><b>安装启动器</b> — 双击安装包完成安装，桌面生成快捷方式。</div></div>
+                <div class="tut-step"><i>2</i><div><b>准备 Java</b> — 在「设置」开启自动下载 Java，或手动指定路径。</div></div>
+                <div class="tut-step"><i>3</i><div><b>下载游戏版本</b> — 「下载中心」四分类任选，点卡片选择安装方式。</div></div>
+                <div class="tut-step"><i>4</i><div><b>安装模组底层</b> — 「版本管理」安装 Fabric / Forge / NeoForge。</div></div>
+                <div class="tut-step"><i>5</i><div><b>安装模组与光影</b> — 「资源中心」搜索 Modrinth 资源一键下载。</div></div>
+                <div class="tut-step"><i>6</i><div><b>配置账户</b> — 「账户」页设置离线名与头像，或微软正版登录。</div></div>
+                <div class="tut-step"><i>7</i><div><b>启动游戏</b> — 回主页选版本，点击「启动游戏」。</div></div>
+              </div>
+            </div>
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m7 8 5-5 5 5"/><path d="M3.5 14h17"/><path d="M7 21c4-2 6 2 10 0"/></svg>
+                <h3>帮助与反馈</h3>
+              </div>
+              <div class="tech-desc">使用遇到问题？查看完整使用教程，或直接提交反馈，我们会尽快回复。</div>
+              <div class="tech-btns">
+                <button class="btn" id="btnTechTutorial">
+                  <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+                  使用教程
+                </button>
+                <button class="btn" id="btnTechFeedback">
+                  <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.4-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>
+                  问题反馈
+                </button>
+              </div>
+              <div class="tech-note">问题反馈将打开腾讯文档表单，点击后在浏览器中提交。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 使用教程（由 AOURA 团队编写） -->
+        <div class="tech-body" id="techTutorial" style="display:none">
+          <div class="st-wrap">
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/><path d="M12 12.2v9"/></svg>
+                <h3>欢迎使用 AOURA 启动器</h3>
+              </div>
+              <div class="tech-desc">
+                AOURA 是一款面向 <b>我的世界（Minecraft）Java 版</b>的桌面启动器，由<b>珉爱制作</b>开发。
+                本文档由 AOURA 团队编写，从安装到启动，手把手带你完成 AOURA 的全部使用流程。
+              </div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.2l3 1.8"/></svg>
+                <h3>第 1 步 · 安装 AOURA</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>双击安装包 <b>AOURA启动器-Setup-xxx.exe</b>，按提示完成安装。安装目录默认在「Program Files」，也支持<b>自定义安装目录</b>（建议安装到 D 盘等空间充足的磁盘）。</div></div>
+                <div class="tut-step"><i>2</i><div>安装完成后桌面会生成 <b>AOURA 启动器</b>快捷方式，双击即可打开。</div></div>
+                <div class="tut-step"><i>3</i><div>首次启动会询问使用<b>离线账户</b>还是<b>微软正版账户</b>，选择后即可开始；之后随时可在「账户」页切换。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：启动器的所有数据、缓存、日志与游戏文件默认存放在安装目录下，卸载时选择"同时删除用户数据"可完全清理。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M5 8.5 12 4l7 4.5v7L12 20l-7-4.5z"/><path d="M5 8.5l7 4.5 7-4.5"/><path d="M12 13v7"/></svg>
+                <h3>第 2 步 · 准备 Java 运行环境</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>进入「设置」，找到 <b>Java 环境</b>区域，开启「<b>自动下载 Java</b>」开关。</div></div>
+                <div class="tut-step"><i>2</i><div>启动器会按你选择的游戏版本自动下载匹配的 Java（老版本用 Java 8，新版本用 Java 17 / 21 / 25）。下载源使用<b>清华 / 南大 / 华为云 / 兰大</b>国内镜像，下载更快更稳。</div></div>
+                <div class="tut-step"><i>3</i><div>如果你本机已装有 Java，也可以关闭自动下载，点击「<b>选择 Java 路径</b>」手动指定 javaw.exe / java.exe 位置。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：Java 与游戏文件一样存放在启动器安装目录下的 java 文件夹，不占用系统环境变量。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 3.5v10"/><path d="m7.5 9.5 4.5 4.5 4.5-4.5"/><path d="M4 17.5v1.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg>
+                <h3>第 3 步 · 下载游戏版本</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>进入「<b>下载中心</b>」，版本清单来自 BMCLAPI 加速镜像与 Mojang 官方，共 900+ 个版本，全部可下载游玩、<b>无试玩版</b>。</div></div>
+                <div class="tut-step"><i>2</i><div>顶部四个分类：<b>正式版</b>（稳定版）· <b>快照版</b>（每周开发版）· <b>特色版</b>（愚人节等官方整活）· <b>远古版</b>（Alpha / Beta 怀旧）。<b>全部版本一次性完整展示</b>，无需翻页或加载更多，直接往下滚动浏览。</div></div>
+                <div class="tut-step"><i>3</i><div>点击任意版本卡片，选择「<b>仅下载原版</b>」或「<b>原版 + Fabric / Forge / NeoForge</b>」，确认后开始下载，进度在右下角「下载任务」浮动面板实时显示，任何页面都一眼可见。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：下载完成的版本会自动出现在「版本管理」与主页的版本选择器中。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>
+                <h3>第 4 步 · 安装模组底层（加载器）</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>进入「<b>版本管理</b>」，选择要安装底层的版本，点击「<b>安装模组底层</b>」。</div></div>
+                <div class="tut-step"><i>2</i><div>选择加载器：<b>Fabric</b>（轻量、适配多数优化/功能模组）· <b>Forge</b>（经典、兼容老牌大型模组）· <b>NeoForge</b>（Forge 继任者、面向最新版本）。</div></div>
+                <div class="tut-step"><i>3</i><div>选择加载器版本后点击安装，等待完成；安装成功后该版本即可识别对应加载器的模组。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：安装底层不影响原版启动，版本列表会同时保留原版与带加载器的启动项。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>
+                <h3>第 5 步 · 获取模组与光影</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>进入「<b>资源中心</b>」，可搜索 <b>Modrinth</b> 开源社区的数万模组、光影、材质包与整合包（如 sodium、iris、SEUS）。</div></div>
+                <div class="tut-step"><i>2</i><div>输入关键词搜索，筛选分类，点击资源卡片可查看版本、依赖并一键下载。</div></div>
+                <div class="tut-step"><i>3</i><div>已下载的模组可在「版本管理 → 模组管理」中<b>启用 / 禁用 / 删除</b>；光影包在「光影管理」中管理。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：搭配 MC 百科（mcmod.cn）可查看模组的中文介绍与教程，资源中心顶部有直达按钮。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4z"/><path d="M4 9.5h16"/><path d="M8 5.5v13"/></svg>
+                <h3>第 6 步 · 管理存档与光影</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>「版本管理 → 存档管理」会列出该版本的全部世界存档，显示存档名称（读自 level.dat），可「<b>打开存档文件夹</b>」或「<b>删除</b>」。</div></div>
+                <div class="tut-step"><i>2</i><div>「光影管理」列出已安装的光影包（zip），支持打开文件夹与删除。</div></div>
+                <div class="tut-step"><i>3</i><div>「整合包管理」支持导入 <b>zip / mrpack</b> 整合包，启动器会自动解压为可启动的版本。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：删除操作前请确认不需要该存档；也可以先打开文件夹手动备份。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>
+                <h3>第 7 步 · 配置账户</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>「<b>账户</b>」页可设置<b>离线账户名</b>（仅限英文字母 / 数字 / 下划线，1–16 个字符，该名字即游戏内玩家名）并上传自定义<b>头像</b>。</div></div>
+                <div class="tut-step"><i>2</i><div>点击「<b>使用微软账户登录</b>」可切换为正版登录（设备码授权，官方许可、行业惯例），登录后以正版身份游玩，支持官方皮肤、联机与成就。</div></div>
+                <div class="tut-step"><i>3</i><div>离线与正版账户互不冲突，随时可切换；使用正版后不再弹出支持正版引导。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：正版账户需要在微软官网购买 Minecraft Java & Bedrock 版，离线启动 10 次后「支持正版」提示会引导你前往购买页。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>
+                <h3>第 8 步 · 启动游戏</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>回到<b>主页</b>，在版本选择器中确认游戏版本与模组底层。</div></div>
+                <div class="tut-step"><i>2</i><div>点击中央的<b>启动游戏</b>按钮，启动器会自动完成 Java 检测、参数组装并拉起游戏进程；日志实时显示在底部面板。</div></div>
+                <div class="tut-step"><i>3</i><div>游戏运行时可随时「<b>停止游戏</b>」；启动器仍可继续操作（下载、浏览资源等）。</div></div>
+              </div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <h3>第 9 步 · 与好友联机（Terracotta 陶瓦联机）</h3>
+              </div>
+              <div class="tut-list">
+                <div class="tut-step"><i>1</i><div>进入「<b>联机</b>」页，点击「<b>创建房间 · 房主</b>」。首次使用启动器会自动准备联机引擎（Terracotta 陶瓦联机），完成后右上角显示「联机引擎运行中」。</div></div>
+                <div class="tut-step"><i>2</i><div>回到游戏进入<b>单人存档</b>，按 <b>ESC</b> 打开菜单，点击「<b>对局域网开放</b>」并创建局域网世界。陶瓦会自动扫描到你的世界。</div></div>
+                <div class="tut-step"><i>3</i><div>房间就绪后页面显示<b>邀请码</b>（格式 U/XXXX-XXXX-XXXX-XXXX），点击「<b>复制邀请码</b>」发给好友。无需公网 IP，P2P 直连。</div></div>
+                <div class="tut-step"><i>4</i><div><b>好友加入</b>：好友在任意支持陶瓦的启动器（AOURA / HMCL / FMCL 等）中进入联机页，选择「加入房间 · 房客」，输入你的邀请码即可自动组网。</div></div>
+                <div class="tut-step"><i>5</i><div>加入成功后，好友在游戏「<b>多人游戏</b>」列表双击「<b>陶瓦联机大厅</b>」（或使用页面显示的备用地址添加服务器），即可进入你的世界一起游玩。</div></div>
+                <div class="tut-step"><i>6</i><div>游玩结束后点击「<b>关闭联机</b>」即可停止引擎；引擎闲置 10 分钟会自动退出，重新开启即可继续。</div></div>
+              </div>
+              <div class="tech-tip"><b>小提示</b>：联机功能由开源项目 Terracotta | 陶瓦联机（AGPL-3.0）提供，与 HMCL / FMCL 玩家互通；如弹出 Windows 防火墙提示请允许访问。正版与离线账户均可联机。</div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19z"/><path d="M12 8.5v5"/><path d="M12 16h.01"/></svg>
+                <h3>常见问题</h3>
+              </div>
+              <div class="faq-list">
+                <div class="faq-item"><b>Q：游戏无法启动 / 提示找不到 Java？</b><p>进入「设置」确认已开启自动下载 Java 且下载完成；若手动指定，请确认路径指向 javaw.exe。启动前主页会做 Java 友好探测并给出明确提示。</p></div>
+                <div class="faq-item"><b>Q：为什么离线账户名必须是英文？</b><p>离线账户名即游戏内玩家名，Minecraft 多人服务器普遍要求英文名，强制英文可避免登录服务器被拒，也与正版生态保持一致。</p></div>
+                <div class="faq-item"><b>Q：下载速度慢 / 下载失败怎么办？</b><p>版本下载走 BMCLAPI 国内镜像，Java 走四源轮询；若某次失败，点击重试或切换网络后重试即可，断点续传会接着下载。</p></div>
+                <div class="faq-item"><b>Q：离线账户和正版账户有什么区别？</b><p>离线：免费、无需登录、无法使用官方皮肤与正版联机；正版：需在微软官方购买，可登录微软账户游玩，支持官方皮肤、联机与成就。</p></div>
+                <div class="faq-item"><b>Q：联机时提示"扫描不到局域网世界"？</b><p>确认游戏已进入存档并点击「对局域网开放」创建了局域网世界；部分系统需允许启动器与陶瓦引擎访问网络（防火墙）。若仍失败，尝试关闭联机后重新开启。</p></div>
+                <div class="faq-item"><b>Q：加入房间提示"EasyTier 已崩溃"？</b><p>这是联机引擎底层的偶发异常，请点击「关闭联机」后重新开启引擎并再次加入；若反复出现，可到问题反馈页向作者反馈。</p></div>
+                <div class="faq-item"><b>Q：和好友不同启动器可以联机吗？</b><p>可以。陶瓦联机是跨启动器的 P2P 方案，AOURA、HMCL、FMCL 等支持陶瓦的启动器之间可以互相创建 / 加入房间。</p></div>
+                <div class="faq-item"><b>Q：为什么我玩的是试玩版？</b><p>AOURA 默认下载并启动正式版，不提供试玩版；如果游戏内出现试玩提示，请确认版本来源为「下载中心」且下载完整，必要时重新下载。</p></div>
+                <div class="faq-item"><b>Q：模组装上了但没有生效？</b><p>确认模组与游戏版本、加载器匹配（如 Fabric 模组需要 Fabric 加载器）；在「模组管理」中确认模组处于启用状态，并已选择带加载器的启动项。</p></div>
+              </div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m7 8 5-5 5 5"/><path d="M3.5 14h17"/><path d="M7 21c4-2 6 2 10 0"/></svg>
+                <h3>支持正版 · 尊重创作</h3>
+              </div>
+              <div class="tech-desc">
+                AOURA 完全兼容 <b>Minecraft Java & Bedrock Edition</b>。我们鼓励玩家购买正版：正版支持 Mojang 持续开发新内容，也让你享受官方皮肤、联机与成就。
+                离线启动累计 10 次后，启动器会弹窗引导你支持正版；使用微软正版账户登录后不再弹出。
+              </div>
+              <div class="tech-btns">
+                <button class="btn btn-glow" id="btnXboxBuy2">
+                  <svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/></svg>
+                  前往微软官方购买
+                </button>
+                <button class="btn" id="btnTechFeedback3">
+                  <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.4-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>
+                  问题反馈
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 关于 ===== -->
+      <section class="view" id="view-about">
+        <div class="page-head">
+          <div>
+            <h1>关于 <span class="en-tag">ABOUT</span></h1>
+            <div class="sub">AOURA 启动器 · 由珉爱制作</div>
+          </div>
+        </div>
+        <div class="ab-wrap">
+          <div class="glass-card ab-hero">
+            <div class="ab-aurora" id="abAurora"></div>
+            <div class="ab-logo">
+              <svg viewBox="0 0 64 64" fill="none"><path d="M14 44 32 18l18 26z" stroke="url(#lgB)" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="37" r="5" fill="#3ee6ff"/></svg>
+            </div>
+            <div class="ab-name">AOURA</div>
+            <div class="ab-slogan">每一次启动，都是一场光的旅行</div>
+            <div class="ab-ver" id="abVer">AOURA 启动器 v18.2 · 面向我的世界玩家</div>
+            <div class="ab-engine" id="abEngine">AOURA 启动引擎 · 基于 Electron</div>
+            <div class="ab-badges">
+              <span class="chip">沉浸光效</span>
+              <span class="chip">加载器安装</span>
+              <span class="chip">Modrinth 集成</span>
+              <span class="chip">BMCLAPI 加速源</span>
+            </div>
+            <div class="ab-btns">
+              <button class="btn btn-glow ab-update" id="btnUpdate">
+                <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+                获取更新
+              </button>
+              <button class="btn ab-website" id="btnWebsite">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13.5 13.5 0 0 1 0 17 13.5 13.5 0 0 1 0-17z"/></svg>
+                前往官网
+              </button>
+            </div>
+          </div>
+
+          <div class="ab-cols">
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M9 4.5v15"/></svg>
+                <h3>软件信息</h3>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">支持系统</div>
+                  <div class="st-desc">Windows 已完整支持，其余系统开发中</div>
+                </div>
+              </div>
+              <div class="os-grid">
+                <div class="os-card os-on">
+                  <svg viewBox="0 0 24 24"><path d="M4.2 4.5h6.3v6.3H4.2z"/><path d="M13.5 4.5h6.3v6.3h-6.3z"/><path d="M4.2 13.2h6.3v6.3H4.2z"/><path d="M13.5 13.2h6.3v6.3h-6.3z"/></svg>
+                  Windows
+                  <span class="os-tag">当前支持</span>
+                </div>
+                <div class="os-card"><svg viewBox="0 0 24 24"><path d="M5.5 4.5h8a2 2 0 0 1 2 2v9h-2v-9h-8z"/><path d="M13.5 6.5h3v3h-3z"/><path d="M13.5 12.5h3v3h-3z"/><path d="M13.5 18.5h3v1h-3z"/></svg>macOS<span class="os-tag dev">开发中</span></div>
+                <div class="os-card"><svg viewBox="0 0 24 24"><path d="M5.5 4.5h10a3 3 0 0 1 3 3v2h-2V7.5h-10z"/><path d="M5.5 19.5h10a3 3 0 0 0 3-3v-2h-2v2h-10z"/><path d="M4 8.5h10"/><path d="M4 15.5h10"/></svg>鸿蒙 OS<span class="os-tag dev">开发中</span></div>
+                <div class="os-card"><svg viewBox="0 0 24 24"><path d="M12 21 4 13a7 7 0 0 1 2-11 7 7 0 0 1 6 3.3A7 7 0 0 1 18 2a7 7 0 0 1 2 11z"/></svg>Linux<span class="os-tag dev">开发中</span></div>
+              </div>
+              <div class="os-note">macOS · 鸿蒙 OS · Linux 版本正在开发中，敬请期待。</div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">项目性质</div>
+                  <div class="st-desc">开源项目 · 面向我的世界玩家</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">版本号</div>
+                  <div class="st-desc" id="aboutVer">5.0</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">设计风格</div>
+                  <div class="st-desc">灵感气泡 · 液态玻璃 · 沉浸光感 · 灵动视效</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">底层引擎</div>
+                  <div class="st-desc" id="abEngine2">Electron / Chromium / Node</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">采用的开源项目</div>
+                  <div class="st-desc">
+                    <span class="oss-tag">Electron</span>
+                    <span class="oss-tag">Chromium</span>
+                    <span class="oss-tag">Terracotta 陶瓦联机（AGPL-3.0）</span>
+                    <span class="oss-tag">Modrinth API</span>
+                    <span class="oss-tag">BMCLAPI</span>
+                    <span class="oss-tag">Adoptium Temurin</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card st-sec">
+              <div class="st-head">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c1.4-3.4 4.2-5.2 7.5-5.2s6.1 1.8 7.5 5.2"/></svg>
+                <h3>作者</h3>
+              </div>
+              <div class="author-hero">
+                <div class="author-av"><img src="assets/author-avatar.png" alt="珉爱"></div>
+                <div class="author-name">珉爱</div>
+                <div class="author-desc">AOURA 启动器作者 · 独立开发爱好者 · 热爱光影与方块世界</div>
+                <div class="author-links">
+                  <button class="btn btn-glow" id="btnAfdian">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M6.5 9.5C5 7.5 7 4.5 12 3c5 1.5 7 4.5 5.5 6.5-1.4 1.8-3.5 2-5.5 2s-4.1-.2-5.5-2z"/></svg>
+                    爱发电主页
+                  </button>
+                  <button class="btn" id="btnAuthorHome">
+                    <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+                    作者主页
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  <!-- 版本资源管理抽屉（模组 / 存档 / 光影 / 整合包） -->
+  <div class="rs-mask" id="mgrMask"></div>
+  <aside class="mgr-panel" id="mgrPanel">
+          <div class="rsd-head">
+            <div class="mgr-icon" id="mgrIcon">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/></svg>
+            </div>
+            <div class="rsd-titles">
+              <div class="rsd-name" id="mgrTitle">模组管理</div>
+              <div class="rsd-meta" id="mgrSub">当前游戏目录</div>
+            </div>
+            <button class="btn btn-mini" id="mgrOpen">
+              <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+              打开文件夹
+            </button>
+            <button class="rsd-close" id="mgrClose" title="关闭">
+              <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div class="mgr-actions" id="mgrActions"></div>
+          <div class="mgr-list" id="mgrList"></div>
+          <div class="mgr-empty" id="mgrEmpty">此目录为空</div>
+        </aside>
+
+  </div>
+
+  <!-- ===== 底部悬浮导航 Dock ===== -->
+  <!-- 全局下载进度浮层：任何页面都一眼可见 -->
+  <div class="dl-float" id="dlFloat" style="display:none">
+    <div class="dl-float-head" id="dlFloatHead">
+      <svg class="dl-ico" viewBox="0 0 24 24"><path d="M12 3.5v10"/><path d="m7.5 9.5 4.5 4.5 4.5-4.5"/><path d="M4 17.5v1.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg>
+      <span class="dl-float-title">下载任务</span>
+      <span class="dl-float-count" id="dlFloatCount">0 个进行中</span>
+      <button class="dl-float-btn" id="dlFloatCancel" title="取消任务">取消</button>
+      <button class="dl-float-btn" id="dlFloatToggle" title="展开 / 收起">收起</button>
+    </div>
+    <div class="queue-list dl-float-list" id="dlQueue"></div>
+  </div>
+
+  <nav class="dock" id="dock">
+    <div class="dock-item active" data-view="home">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M3 11.2 12 3.5l9 7.7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg></div>
+      <div class="di-tip">主页</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="versions">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/><path d="M12 12.2v9"/></svg></div>
+      <div class="di-tip">版本管理</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="download">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M12 3.5v10"/><path d="m7.5 9.5 4.5 4.5 4.5-4.5"/><path d="M4 17.5v1.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg></div>
+      <div class="di-tip">下载中心</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="resources">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg></div>
+      <div class="di-tip">资源中心</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="mods">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/><path d="m9 11.8 2.2 2.2L15.5 9.5"/></svg></div>
+      <div class="di-tip">模组</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="multiplayer">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M17 20h4v-1.6a3 3 0 0 0-2.4-2.95"/><path d="M14 20v-1.6a3 3 0 0 0-2.4-2.95M7 20v-1.6a3 3 0 0 0-2.4-2.95"/><circle cx="9.5" cy="9" r="2.5"/><circle cx="14.5" cy="9" r="2.5"/><path d="M3.5 20v-1.6a3 3 0 0 1 2.4-2.95"/></svg></div>
+      <div class="di-tip">联机</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="tech">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M8 8.5 3.5 12 8 15.5"/><path d="M16 8.5 20.5 12 16 15.5"/><path d="m13.5 4.5-3 15"/></svg></div>
+      <div class="di-tip">技术说明</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="settings">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.08a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></div>
+      <div class="di-tip">设置</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="about">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="8" r="1.1" fill="currentColor"/></svg></div>
+      <div class="di-tip">关于</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-sep"></div>
+    <div class="dock-item dock-acc" id="dockAcc">
+      <div class="acc-av" id="dockAvatarWrap"><img id="dockAvatarImg" alt=""><span class="dot"></span></div>
+      <div class="acc-nm" id="dockName">离线账户</div>
+      <div class="di-tip">账户</div>
+    </div>
+  </nav>
+</div>
+
+<!-- 首次启动：选择账户模式 -->
+<div class="dlopt-mask" id="firstRunMask">
+  <div class="dlopt" style="max-width:520px">
+    <div class="dlopt-title">欢迎使用 AOURA 启动器</div>
+    <div class="dlopt-sub">选择你的账户模式，之后可随时在“设置”中切换</div>
+    <div class="account-choice">
+      <div class="ac-card" id="acOffline">
+        <div class="ac-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c1.4-3.4 4.2-5.2 7.5-5.2s6.1 1.8 7.5 5.2"/></svg>
+        </div>
+        <div class="ac-name">离线账户</div>
+        <div class="ac-desc">无需购买，立即免费游玩单人世界与本地局域网。下载即用。</div>
+        <div class="ac-btn">直接开始游玩</div>
+      </div>
+      <div class="ac-card" id="acMicrosoft">
+        <div class="ac-icon">
+          <svg viewBox="0 0 24 24"><path d="M4.5 4.5h7v7h-7zM12.5 4.5h7v7h-7zM4.5 12.5h7v7h-7zM12.5 12.5h7v7h-7z"/></svg>
+        </div>
+        <div class="ac-name">微软正版账户</div>
+        <div class="ac-desc">使用 Microsoft 账户登录，支持多人联机、官方皮肤与全部功能。</div>
+        <div class="ac-btn">使用正版登录</div>
+      </div>
+    </div>
+    <div class="dlopt-foot">
+      <span class="src-note">离线模式游玩后，启动器会引导你了解正版支持</span>
+    </div>
+  </div>
+</div>
+
+<!-- 离线游玩每满 10 次：请支持正版 -->
+<div class="dlopt-mask" id="supportMask">
+  <div class="dlopt" style="max-width:480px">
+    <div class="dlopt-title">请支持正版 Minecraft</div>
+    <div class="dlopt-sub" id="supportSub">离线账户仅用于体验。购买正版后，你将获得多人联机、官方皮肤与持续更新，也能让 Mojang 继续开发这款游戏。</div>
+    <div class="dlopt-opts" style="flex-direction:column">
+      <button class="btn" id="btnBuyMc">
+        <svg viewBox="0 0 24 24"><path d="M3.5 6.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>
+        前往 Xbox 购买 Minecraft
+      </button>
+      <button class="btn btn-mini" id="btnSupportLater">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 下载选项弹层（仅原版 / 原版+加载器） -->
+<div class="dlopt-mask" id="dlOptMask">
+  <div class="dlopt">
+    <div class="dlopt-title" id="dlOptTitle">下载 Minecraft 版本</div>
+    <div class="dlopt-sub">选择安装方式：仅原版，或原版 + 模组加载器底层（可自选底层版本）</div>
+    <div class="dlopt-opts" id="dlOptOpts"></div>
+    <div class="dlopt-ver" id="dlOptVer" style="display:none">
+      <div class="dlopt-ver-row">
+        <label>模组底层版本</label>
+        <select id="dlOptLvSel"><option value="">正在获取版本列表…</option></select>
+      </div>
+      <div class="dlopt-ver-tip" id="dlOptLvTip">推荐版本：启动器已为您挑选兼容稳定的版本</div>
+      <button class="btn btn-primary" id="dlOptGo" style="width:100%;margin-top:10px">下载所选版本</button>
+    </div>
+    <div class="dlopt-foot">
+      <span class="src-note" id="dlSrcNote">下载源：BMCLAPI 加速镜像 · 自动回退 Mojang 官方</span>
+      <button class="btn btn-mini" id="dlOptCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 离线账户首登：强制设置用户名与头像 -->
+<div class="dlopt-mask" id="avSetupMask">
+  <div class="dlopt" style="max-width:420px">
+    <div class="dlopt-title">欢迎使用离线账户</div>
+    <div class="dlopt-sub">进入离线模式前，请先设置你的玩家名与头像（必填，便于联机识别）</div>
+    <div class="av-setup-body">
+      <div class="av-setup-av" id="avSetupAvWrap">
+        <img id="avSetupImg" alt="头像">
+        <div class="av-setup-av-ico">
+          <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M4 20.5c1.6-3.6 4.6-5.5 8-5.5s6.4 1.9 8 5.5"/></svg>
+        </div>
+      </div>
+      <input type="text" id="avSetupName" maxlength="16" placeholder="输入英文玩家名（字母/数字/下划线，1-16 位）" spellcheck="false">
+      <div class="av-setup-row">
+        <button class="btn btn-mini" id="avSetupUpload">
+          <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+          上传头像
+        </button>
+        <button class="btn btn-mini" id="avSetupPick">
+          <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+          使用默认头像
+        </button>
+      </div>
+    </div>
+    <div class="dlopt-foot">
+      <span class="src-note" id="avSetupTip"></span>
+      <button class="btn btn-primary" id="avSetupOk">确认进入离线模式</button>
+    </div>
+  </div>
+</div>
+
+<!-- 启动日志 -->
+<div class="log-drawer" id="logDrawer">
+  <div class="log-head" id="logHead">
+    <span class="log-title">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="m7.5 9.5 3 3-3 3"/><path d="M13 15.5h3.5"/></svg>
+      <i class="log-led" id="logLed"></i>
+      <span id="logState">日志</span>
+    </span>
+    <div class="log-actions">
+      <button class="btn btn-mini" id="logExport">
+        <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
+        导出
+      </button>
+      <button class="btn btn-mini" id="logClear">清空</button>
+      <button class="btn btn-mini" id="logToggle">
+        <svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>
+        <span id="logToggleText">展开</span>
+      </button>
+    </div>
+  </div>
+  <div class="log-body" id="logBody"></div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3ee6ff"/><stop offset="1" stop-color="#9a7bff"/>
+    </linearGradient>
+    <linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3ee6ff"/><stop offset="1" stop-color="#9a7bff"/>
+    </linearGradient>
+    <filter id="bloom"><feGaussianBlur stdDeviation="6"/><feComponentTransfer><feFuncA type="linear" slope="1.6"/></feComponentTransfer></filter>
+  </defs>
+</svg>
+
+<div class="ver-drop" id="verDrop"></div>
+<script src="renderer.js"></script>
+</body>
+</html>
