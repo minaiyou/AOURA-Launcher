@@ -53,6 +53,9 @@ a{color:var(--cyan);text-decoration:none}
 .nav-links a:hover{color:var(--txt);background:rgba(77,227,255,.08)}
 .nav-links a.on{color:var(--txt);background:rgba(77,227,255,.12);box-shadow:inset 0 0 0 1px rgba(77,227,255,.25)}
 .nav-cta{margin-left:auto}
+.nav-gh{margin-right:10px;border:1px solid var(--line-2);background:rgba(255,255,255,.04);color:var(--txt-2);padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:all .25s}
+.nav-gh svg{width:15px;height:15px;fill:currentColor}
+.nav-gh:hover{border-color:var(--cyan);color:var(--cyan);transform:translateY(-1px)}
 main{position:relative;z-index:3}
 .page{display:none;padding:104px 0 80px;min-height:100vh;animation:pgIn .5s var(--ease)}
 .page.on{display:block}
@@ -219,6 +222,10 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <a href="#download" data-p="download">下载</a>
       <a href="#about" data-p="about">关于</a>
     </div>
+    <a class="btn btn-ghost nav-gh" href="https://github.com/minaiyou/AOURA-Launcher" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 2.9.8.1-.6.4-1.1.7-1.3-2.2-.3-4.6-1.1-4.6-4.9 0-1.1.4-2 1-2.7-.1-.2-.4-1.2.1-2.6 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.6.6.7 1 1.6 1 2.7 0 3.8-2.4 4.6-4.6 4.9.4.3.7.9.7 1.9v2.9c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></svg>
+      GitHub
+    </a>
     <a class="btn btn-glow nav-cta" href="https://github.com/minaiyou/AOURA-Launcher/releases/latest" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
       立即下载
@@ -251,7 +258,7 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
         <a class="btn" href="#features"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m5 12 7-7 7 7"/></svg>了解特性</a>
       </div>
       <div class="hero-ver">
-        <span class="hv"><i class="dot"></i>最新版本 <b>18.2</b></span>
+        <span class="hv"><i class="dot"></i>最新版本 <b>18.3</b></span>
         <span class="hv">Windows 已支持</span>
         <span class="hv">macOS · 鸿蒙 OS 开发中</span>
       </div>
@@ -394,7 +401,7 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <div class="sub">安装包随版本持续更新，下载页由作者统一维护，始终指向最新版本。</div>
     </div>
     <div class="glass dl-box">
-      <div class="big">AOURA 启动器 <em style="font-style:normal;color:var(--cyan)">v18.2</em></div>
+      <div class="big">AOURA 启动器 <em style="font-style:normal;color:var(--cyan)">v18.3</em></div>
       <div class="ver-note">Windows 安装包 · 约 92 MB · 沉浸光效版 · 内置陶瓦联机引擎</div>
       <a class="btn btn-glow" href="https://github.com/minaiyou/AOURA-Launcher/releases/latest" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
@@ -413,7 +420,8 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <div class="sub">每一次更新，都是一次光效与体验的进化。</div>
     </div>
     <div class="timeline">
-      <div class="tl-row"><div class="tl-ver">18.2<small>当前</small></div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>游戏语言支持</b><p>修复安装模组底层（Forge/Fabric/NeoForge）后游戏变为英文的问题：新增「游戏语言」设置（默认简体中文），启动前自动写入游戏语言配置；中文语言文件随资源自动补齐，无需额外下载任何底层，所有版本与模组底层均完整支持中文。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.3<small>当前</small></div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>正式开源 · 全新官网</b><p>AOURA 启动器正式在 GitHub 开源（MIT 许可），仓库：github.com/minaiyou/AOURA-Launcher；官网迁至 GitHub Pages：minaiyou.github.io/AOURA-Launcher。关于页更新为「网盘更新 / 官网更新」双按钮：网盘更新直达获取更新页，官网更新直通 GitHub 官网，并新增开源仓库快捷入口。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.2</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>游戏语言支持</b><p>修复安装模组底层（Forge/Fabric/NeoForge）后游戏变为英文的问题：新增「游戏语言」设置（默认简体中文），启动前自动写入游戏语言配置；中文语言文件随资源自动补齐，无需额外下载任何底层，所有版本与模组底层均完整支持中文。</p></div></div>
       <div class="tl-row"><div class="tl-ver">18.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>启动前资源自检补齐</b><p>修复「无法进入游戏」：下载游戏时若个别资源失败不再静默跳过，统一记录并自动重试补齐；启动游戏前自动扫描缺失资源（PCL 同款做法），发现缺失立即从镜像+官方多源补齐，彻底解决启动时缺文件崩溃（NoSuchFileException）。</p></div></div>
       <div class="tl-row"><div class="tl-ver">18.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>测速选源 · 质感气泡 · 20 主题</b><p>下载再提速：新增下载源测速机制，自动挑选响应最快的镜像/官方源作为主源（PCL 同款思路），分段下载单主源推进、失败快速切换，不再出现卡在进度条不动的情况；模组底层安装的安装器与依赖库同样测速选源，大幅降低「网络或文件问题」失败；主页环境气泡全面重做玻璃质感（高光反射、内阴影、光晕呼吸、星尘微光）；主题扩充到 20 套。</p></div></div>
       <div class="tl-row"><div class="tl-ver">17.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载双源并发 · 环境气泡 · 更稳定</b><p>下载全面提速：分段下载改为镜像 + 官方源同时开跑、快者胜出，慢源不再拖累整段；单段 30 秒超时保护，彻底告别「卡壳/无法下载」；下载失败自动写入日志便于排查。主页游戏环境（版本 / Java / 内存 / 账户）改为与启动键同款液态玻璃气泡，环绕在启动键四周；资源中心移除翻译入口，回归清爽。</p></div></div>
