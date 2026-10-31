@@ -1,0 +1,9 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/Download",
+    "pages/Resource",
+    "pages/Settings",
+    "pages/About"
+  ]
+}
