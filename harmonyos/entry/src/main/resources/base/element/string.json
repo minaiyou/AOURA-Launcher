@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "AOURA 启动器主模块"
+    },
+    {
+      "name": "ability_desc",
+      "value": "AOURA 启动器 · 沉浸光效我的世界启动器（鸿蒙 PC 适配版）"
+    },
+    {
+      "name": "app_name",
+      "value": "AOURA 启动器"
+    }
+  ]
+}
