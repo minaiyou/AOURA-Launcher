@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('aoura', {
   stopLaunch: () => ipcRenderer.invoke('launch:stop'),
   /* 版本下载 */
   getManifest: () => ipcRenderer.invoke('download:manifest'),
-  downloadVersion: (versionId) => ipcRenderer.invoke('download:versionStart', versionId),
+  downloadVersion: (versionId, opts) => ipcRenderer.invoke('download:versionStart', versionId, opts),
   downloadVersionWithLoader: (versionId, loaderType) => ipcRenderer.invoke('download:versionWithLoader', versionId, loaderType),
   cancelDownload: () => ipcRenderer.invoke('download:cancel'),
   loaderSourceOk: () => ipcRenderer.invoke('loader:sourceOk'),
@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('aoura', {
   /* 加载器安装 */
   fabricVersions: (mc) => ipcRenderer.invoke('loader:fabricVersions', mc),
   forgePromos: () => ipcRenderer.invoke('loader:forgePromos'),
+  optifineList: (mc) => ipcRenderer.invoke('optifine:list', mc),
+  optifineInstall: (mc, type, patch) => ipcRenderer.invoke('optifine:install', mc, type, patch),
+  removeResFile: (dir, name) => ipcRenderer.invoke('res:removeFile', dir, name),
   forgeVersions: (mc) => ipcRenderer.invoke('loader:forgeVersions', mc),
   neoforgeVersions: (mc) => ipcRenderer.invoke('loader:neoforgeVersions', mc),
   installLoader: (opts) => ipcRenderer.invoke('loader:install', opts),
@@ -58,6 +61,7 @@ contextBridge.exposeInMainWorld('aoura', {
   /* 版本操作 */
   deleteVersion: (id) => ipcRenderer.invoke('versions:delete', id),
   duplicateVersion: (id, newId) => ipcRenderer.invoke('versions:duplicate', id, newId),
+  repairMain: (id) => ipcRenderer.invoke('versions:repairMain', id),
   /* 头像 */
   fabricLoaderVersions: (mc) => ipcRenderer.invoke('loader:fabricVersions', mc),
   useDefaultAvatar: () => ipcRenderer.invoke('avatar:default'),
@@ -70,6 +74,9 @@ contextBridge.exposeInMainWorld('aoura', {
   mgrDelete: (kind, name, versionId) => ipcRenderer.invoke('mgr:delete', { kind, name, versionId }),
   mgrOpen: (kind, versionId) => ipcRenderer.invoke('mgr:open', { kind, versionId }),
   mgrImport: () => ipcRenderer.invoke('mgr:import'),
+  renameVersion: (oldId, newId) => ipcRenderer.invoke('versions:rename', oldId, newId),
+  onPackImport: cb => ipcRenderer.on('pack:importProgress', (e, d) => cb(d)),
+  onSaveImport: cb => ipcRenderer.on('save:importProgress', (e, d) => cb(d)),
   mgrImportSaves: (versionId) => ipcRenderer.invoke('mgr:importSaves', versionId || ''),
   /* 系统 */
   pickDir: () => ipcRenderer.invoke('dialog:pickDir'),
@@ -77,6 +84,8 @@ contextBridge.exposeInMainWorld('aoura', {
   winMin: () => ipcRenderer.invoke('window:min'),
   winMax: () => ipcRenderer.invoke('window:max'),
   winClose: () => ipcRenderer.invoke('window:close'),
+  /* 沙箱信息（28.0.1：沙箱为鸿蒙端专属特性，Windows 原生直跑） */
+  sandboxInfo: () => ipcRenderer.invoke('sandbox:info'),
   /* 事件 */
   onLaunchLog: (cb) => ipcRenderer.on('launch:log', (e, d) => cb(d)),
   onLaunchStatus: (cb) => ipcRenderer.on('launch:status', (e, d) => cb(d)),

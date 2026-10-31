@@ -9,9 +9,29 @@ const { spawn, execFile } = require('child_process');
 const https = require('https');
 const AdmZip = require('adm-zip');
 
+/* 28：URL 安全编码 —— Electron net.fetch 对含非 ASCII 字符的 URL 抛 ByteString 异常直接崩溃主进程
+（报错：Cannot convert argument to a ByteString ... 65533 ...），统一在请求前把路径中的非 ASCII 字符
+编码为百分号形式；已编码片段保持不变，避免双重编码 */
+function safeUrl(u){
+  if (!u || /^[\x20-\x7E]*$/.test(u)) return u;
+  try {
+    const p = new URL(u);
+    const segs = [];
+    for (const seg of p.pathname.split('/')){
+      let s = seg;
+      try { s = encodeURIComponent(decodeURIComponent(seg)); }
+      catch(e){ try { s = encodeURIComponent(seg); } catch(e2){} }
+      segs.push(s);
+    }
+    p.pathname = segs.join('/');
+    return p.toString();
+  } catch(e){ return u; }
+}
+
 /* 统一网络请求：优先 Electron net（Chromium 网络栈，自动识别系统/环境代理），失败回退全局 fetch */
 async function httpFetch(url, opts){
   opts = opts || {};
+  url = safeUrl(url);
   try {
     if (net && typeof net.fetch === 'function') return await net.fetch(url, opts);
   } catch(e){}
@@ -25,11 +45,13 @@ let cfg = {
   memory: 4096,
   offlineName: 'Player',
   mirror: 'bmclapi',
+  dlThreads: 16,   // 19.0：下载最大线程数（1-256，可调；>64 时提醒注意 CPU 占用）
+  dlRateLimit: 0,  // 19.0：下载速度限制（KB/s，0 = 不限速）
   currentVersion: '',
   lightEffect: true,
   dynamicWallpaper: true,
   panelBlur: true,
-  isolation: false,
+  isolation: true, // 20.4：版本隔离默认开启——每个版本的存档/模组/光影/资源包独立存放
   lang: 'zh_cn',
   closeAfterLaunch: false,
   jvmArgs: '',
@@ -90,12 +112,21 @@ function offlineUUID(name){
   return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
 }
 function mirrorUrl(url){
-  if (cfg.mirror !== 'bmclapi' || !url) return url;
+  if (!url) return url;
+  if (cfg.mirror === 'fastmc'){
+    // 20.1：FastMinecraftMirror（国内开源镜像，子域名同构；新版库仓库 libraries.minecraft.net 无镜像时自动回退官方）
+    return url
+      .replace('https://launcher.mojang.com/', 'https://launcher.fastmcmirror.org/')
+      .replace('https://resources.download.minecraft.net/', 'https://resources.fastmcmirror.org/')
+      .replace('https://maven.minecraftforge.net/', 'https://forge.fastmcmirror.org/')
+      .replace('https://files.minecraftforge.net/maven/', 'https://forge.fastmcmirror.org/')
+      .replace('https://maven.fabricmc.net/', 'https://fabric.fastmcmirror.org/')
+      .replace('https://maven.quiltmc.org/repository/release/', 'https://quilt.fastmcmirror.org/repository/release/');
+  }
+  if (cfg.mirror !== 'bmclapi') return url;
   return url
-    .replace('https://libraries.minecraft.net/', 'https://bmclapi2.bangbang93.com/maven/')
-    .replace('https://launcher.mojang.com/', 'https://bmclapi2.bangbang93.com/')
-    // piston-meta / piston-data 的路径结构与 BMCLAPI 不同（等路径替换会得到无效 URL），
-    // 官方源本身快速稳定，不再镜像替换；版本 jar / meta 的双源加速在 downloadVersion 内单独处理
+    .replace('https://libraries.minecraft.net/', 'https://bmclapi2.bangbang93.com/libraries/')
+    // launcher.mojang.com 已下线（301→piston-data），不镜像（避免等路径替换产生无效 URL），官方直连兜底
     .replace('https://resources.download.minecraft.net/', 'https://bmclapi2.bangbang93.com/assets/')
     .replace('https://maven.fabricmc.net/', 'https://bmclapi2.bangbang93.com/maven/')
     .replace('https://maven.minecraftforge.net/', 'https://bmclapi2.bangbang93.com/maven/')
@@ -353,6 +384,25 @@ function makeToken(){ return Symbol('dl'); }
 function cancelToken(t){ if (t) cancelTokens.add(t); }
 function isCancelled(t){ return !!(t && cancelTokens.has(t)); }
 
+/* 18.4：资源下载/补齐互斥锁 —— 防止下载任务与启动前补齐并发写同一批资源文件触发 Windows EPERM */
+let assetPhaseBusy = false;
+function sleepMs(ms){ return new Promise(r => setTimeout(r, ms)); }
+async function withAssetPhaseLock(fn){
+  while (assetPhaseBusy) await sleepMs(200);
+  assetPhaseBusy = true;
+  try { return await fn(); } finally { assetPhaseBusy = false; }
+}
+/* 写盘重试：Windows 下目标文件被短暂占用（EPERM/EACCES）时，延迟重试打开 */
+async function openWriteRetry(dest, tries){
+  for (let i = 0; i < (tries || 5); i++){
+    try { return fs.openSync(dest, 'w'); }
+    catch(e){
+      if (i === (tries || 5) - 1) throw e;
+      await sleepMs(150 * (i + 1));
+    }
+  }
+}
+
 function downloadFile(url, dest, token, onProgress){
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   if (net && typeof net.fetch === 'function'){
@@ -362,6 +412,7 @@ function downloadFile(url, dest, token, onProgress){
 }
 async function downloadViaNetFetch(url, dest, token, onProgress){
   if (isCancelled(token)) throw new Error('CANCELLED');
+  url = safeUrl(url);
   // 防卡壳：总时限 10 分钟 + 无数据 30s 自动中断（镜像多源容错思路，JDK 包约 200MB 需要更宽裕的总时限）
   const ctrl = new AbortController();
   let lastAct = Date.now();
@@ -377,7 +428,8 @@ async function downloadViaNetFetch(url, dest, token, onProgress){
     if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0;
     let received = 0;
-    const ws = fs.createWriteStream(dest);
+    const fd = await openWriteRetry(dest);
+    const ws = fs.createWriteStream(dest, { fd, autoClose: true });
     const reader = res.body.getReader();
     for (;;){
       if (isCancelled(token)){ reader.cancel().catch(()=>{}); ws.destroy(); try { fs.unlinkSync(dest); } catch(e){} throw new Error('CANCELLED'); }
@@ -403,6 +455,7 @@ function downloadViaHttps(url, dest, token, onProgress){
     let redirects = 0;
     const attempt = (u) => {
       if (isCancelled(token)) return reject(new Error('CANCELLED'));
+      u = safeUrl(u);
       const req = https.get(u, { headers: { 'User-Agent': 'AOURA-Launcher/4.0' } }, res => {
         if ([301,302,303,307,308].includes(res.statusCode)){
           if (++redirects > 6) return reject(new Error('重定向过多: ' + u));
@@ -415,7 +468,16 @@ function downloadViaHttps(url, dest, token, onProgress){
         }
         const total = parseInt(res.headers['content-length'] || '0', 10) || 0;
         let received = 0;
-        const ws = fs.createWriteStream(dest);
+        // 18.4：写盘 EPERM 重试（同步短暂等待）
+        let fd = null;
+        for (let wi = 0; wi < 5; wi++){
+          try { fd = fs.openSync(dest, 'w'); break; }
+          catch(werr){
+            if (wi === 4) throw werr;
+            const tw = Date.now(); while (Date.now() - tw < 150 * (wi + 1)){ /* 同步等待 */ }
+          }
+        }
+        const ws = fs.createWriteStream(dest, { fd, autoClose: true });
         res.on('data', chunk => {
           received += chunk.length;
           if (onProgress) onProgress({ received, total });
@@ -449,12 +511,21 @@ async function pickFastSource(urls, timeoutMs){
   const cands = (urls || []).filter(Boolean);
   if (!cands.length) return null;
   if (cands.length === 1) return cands[0];
+  // 19.1：改用真实下载测速（GET Range 拉取 768KB），HEAD 只反映可达性、不反映吞吐，易选错慢源
   const results = await Promise.allSettled(cands.map(async u => {
     const t0 = Date.now();
     try {
-      const res = await httpFetch(u, { method: 'HEAD', headers: { 'User-Agent': 'AOURA-Launcher/4.0' }, signal: AbortSignal.timeout(timeoutMs || 8000) });
-      const len = res.ok ? (parseInt(res.headers.get('content-length') || '0', 10) || 0) : 0;
-      return { u, ok: res.ok && len > 0, ms: Date.now() - t0, len };
+      const res = await httpFetch(u, { method: 'GET', headers: { 'User-Agent': 'AOURA-Launcher/4.0', Range: 'bytes=0-786431' }, signal: AbortSignal.timeout(timeoutMs || 8000) });
+      if (!res || (!res.ok && res.status !== 206)) return { u, ok: false, ms: Date.now() - t0, len: 0 };
+      const reader = res.body.getReader();
+      let got = 0;
+      for (;;){
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) got += value.length;
+        if (got >= 786432){ await reader.cancel().catch(()=>{}); break; }
+      }
+      return { u, ok: got > 0, ms: Date.now() - t0, len: got };
     } catch(e){ return { u, ok: false, ms: Date.now() - t0, len: 0 }; }
   }));
   const good = results.filter(r => r.status === 'fulfilled' && r.value.ok).map(r => r.value);
@@ -473,22 +544,40 @@ async function fastHeadSize(url){
     return { size: len, range: rangeOk };
   } catch(e){ return null; }
 }
-async function fastRangeFetch(url, dest, start, end, token){
+// 19.1：全局限速桶（所有分段共享一个速率预算，避免每段各自限速导致总速被放大）
+let rateBucket = { bytes: 0, at: 0 };
+async function fastRangeFetch(url, dest, start, end, token, onProg){
   const ctrl = new AbortController();
   const tmr = setTimeout(() => ctrl.abort(), 15000); // 单段 15s 超时，防止慢源挂死整条下载
+  url = safeUrl(url);
   try {
     const res = await net.fetch(url, {
       headers: { 'User-Agent': 'AOURA-Launcher/4.0', Range: 'bytes=' + start + '-' + end },
       signal: ctrl.signal
     });
   if (!res.ok && res.status !== 206) throw new Error('HTTP ' + res.status + ' ' + url);
-  const ws = fs.createWriteStream(dest);
+  const fdSeg = await openWriteRetry(dest);
+  const ws = fs.createWriteStream(dest, { fd: fdSeg, autoClose: true });
   const reader = res.body.getReader();
   for (;;){
     if (isCancelled(token)){ reader.cancel().catch(()=>{}); ws.destroy(); try { fs.unlinkSync(dest); } catch(e){} throw new Error('CANCELLED'); }
     const { done, value } = await reader.read();
     if (done) break;
-    if (value) ws.write(Buffer.from(value));
+    if (value){
+      const chunk = Buffer.from(value);
+      ws.write(chunk);
+      if (onProg) onProg(chunk.length);
+      // 19.1：下载速度限制（KB/s，0=不限）——全局共享速率桶，语义为整机总限速
+      if (cfg.dlRateLimit > 0){
+        rateBucket.bytes += chunk.length;
+        if (rateBucket.bytes >= 262144){ // 每 ~256KB 校准一次
+          const el = Date.now() - rateBucket.at;
+          const want = Math.ceil(rateBucket.bytes / (cfg.dlRateLimit * 1024) * 1000);
+          if (want > el) await sleepMs(want - el);
+          rateBucket.at = Date.now(); rateBucket.bytes = 0;
+        }
+      }
+    }
   }
   await new Promise((r, j) => ws.end(e => e ? j(e) : r()));
   } finally { clearTimeout(tmr); }
@@ -496,44 +585,77 @@ async function fastRangeFetch(url, dest, start, end, token){
 /* 下载加速：大文件分段并发（Range），任一段多源失败即整体回退整文件下载 */
 async function fastDownloadMulti(attempts, dest, token, onProgress){
   if (isCancelled(token)) throw new Error('CANCELLED');
+  // 28：只探测首选源（镜像）一次即可，失败走整文件双源兜底——避免小文件批量下载时
+  // 对每个文件逐源 HEAD 探测（3598 个资源可省约一半探测请求），显著提升资源补齐/库下载速度
   let probe = null;
-  for (const u of attempts){ probe = await fastHeadSize(u); if (probe && probe.size > 0) break; }
+  try { probe = await fastHeadSize(attempts[0]); } catch(e){}
   if (!probe || !probe.range || probe.size < 1024 * 1024) return false;
-  const SEG = 12;
+  // 19.0：线程数由用户在设置中调节（1-256，默认 16）；文件过小时自动回落单线程整文件下载
+  // 19.1：线程数由用户调节（1-256）；每段至少 1MB，避免文件较小时分段碎片化（请求开销反超收益）
+  const SEG0 = Math.max(1, Math.min(256, cfg.dlThreads || 16));
+  const SEG = Math.max(1, Math.min(SEG0, Math.ceil(probe.size / (1024 * 1024))));
   const segSize = Math.ceil(probe.size / SEG);
   const tmp = dest + '.fast';
   fs.mkdirSync(tmp, { recursive: true });
   let segDone = 0;
+  let progDone = 0; // 已完整落盘分段的字节累计（保证进度按真实字节平滑推进）
+  let maxReported = 0; // 18.6：进度单调保护——换源重试/并发交错时 received 可能回落，一律只增不减，杜绝进度条倒退抽搐
+  const report = received => {
+    const r = Math.min(probe.size, Math.max(maxReported, received));
+    maxReported = r;
+    if (onProgress) onProgress({ received: r, total: probe.size });
+  };
   const one = async (i) => {
     const start = i * segSize;
     const end = Math.min(probe.size - 1, start + segSize - 1);
     const destSeg = path.join(tmp, 'p' + i);
-    // 单主源分段（PCL 思路）：先试最快的源，失败再换下一源，避免双源并发相互拖慢/触发限流
+    // 单主源分段：先试最快的源，失败再换下一源，避免双源并发相互拖慢/触发限流
     let lastErr = null;
-    for (let t = 0; t <= 2; t++){
+    for (let t = 0; t <= 3; t++){
       for (const u of attempts){
         try {
-          await fastRangeFetch(u, destSeg, start, end, token);
+          let segMax = 0;
+          await fastRangeFetch(u, destSeg, start, end, token, inc => {
+            segMax += inc;
+            report(progDone + segMax);
+          });
           segDone++;
-          if (onProgress) onProgress({ received: Math.round(probe.size * segDone / SEG), total: probe.size });
+          progDone += (end - start + 1);
+          report(progDone);
           return;
         } catch(e){
           if (e.message === 'CANCELLED') throw e;
           lastErr = e;
-          await new Promise(r => setTimeout(r, 120 * (t + 1)));
+          await new Promise(r => setTimeout(r, 150 * (t + 1)));
         }
       }
     }
     throw lastErr || new Error('分段下载失败');
   };
   try {
-    const results = await Promise.allSettled(Array.from({ length: SEG }, (_, i) => i).map(one));
-    const rej = results.find(r => r.status === 'rejected');
-    if (rej) throw rej.reason || new Error('分段下载未完成');
-    // 合并
-    const ws = fs.createWriteStream(dest);
+    // 18.6：先并行一轮；个别段瞬时失败（网络抖动）不再直接判整体失败，
+    // 单独补齐重试最多两轮，仍失败才回退整文件下载，显著降低“下载直接失败”概率
+    let results = await Promise.allSettled(Array.from({ length: SEG }, (_, i) => i).map(one));
+    let rejIdx = results.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
+    for (let pass = 0; pass < 2 && rejIdx.length; pass++){
+      const retry = await Promise.allSettled(rejIdx.map(one));
+      const still = [];
+      retry.forEach((r, k) => { if (r.status === 'rejected') still.push(rejIdx[k]); });
+      rejIdx = still;
+    }
+    if (rejIdx.length){
+      const first = results[rejIdx[0]];
+      throw (first && first.reason) || new Error('分段下载未完成');
+    }
+    // 合并（18.4：写盘与读段均带 EPERM 重试）
+    const fdOut = await openWriteRetry(dest);
+    const ws = fs.createWriteStream(dest, { fd: fdOut, autoClose: true });
     for (let i = 0; i < SEG; i++){
-      const buf = fs.readFileSync(path.join(tmp, 'p' + i));
+      let buf = null;
+      for (let t = 0; t < 5; t++){
+        try { buf = fs.readFileSync(path.join(tmp, 'p' + i)); break; }
+        catch(e){ if (t === 4) throw e; await sleepMs(100 * (t + 1)); }
+      }
       ws.write(buf);
     }
     await new Promise((r, j) => ws.end(e => e ? j(e) : r()));
@@ -694,7 +816,12 @@ async function detectJavaList(){
   results.sort((a,b) => (b.major||0)-(a.major||0));
   return results;
 }
-function resolveJavaExe(){
+function resolveJavaExe(versionId){
+  // 28：新版 Minecraft（1.21+/26.x）需要 Java 21+——优先使用已安装的 jdk-21，缺失时回退现有 Java 17
+  if (versionId && needsJava21(versionId)){
+    const j21 = path.join(dataRoot(), 'java', 'jdk-21', process.platform === 'win32' ? 'bin/java.exe' : 'bin/java');
+    if (fs.existsSync(j21)) return j21;
+  }
   if (cfg.javaPath){
     const p = cfg.javaPath;
     if (fs.existsSync(p)){
@@ -705,6 +832,25 @@ function resolveJavaExe(){
     }
   }
   return 'java';
+}
+function needsJava21(versionId){
+  if (!versionId) return false;
+  const first = versionId.split('-')[0];
+  const n = parseInt(first, 10);
+  if (!isNaN(n)) return n >= 21; // 26.x 等新命名
+  if (first.startsWith('1.')){
+    const parts = first.split('.');
+    if (parts.length >= 2 && parts[0] === '1') return parseInt(parts[1], 10) >= 21; // 1.21+
+  }
+  return false;
+}
+function detectJavaMajor(exe){
+  try {
+    const r = require('child_process').spawnSync(exe, ['-version'], { timeout: 8000, encoding: 'utf8' });
+    const m = String(r.stderr || r.stdout || '').match(/"(\d+)(?:\.|")/);
+    if (m) return parseInt(m[1], 10);
+  } catch(e){}
+  return 0;
 }
 
 /* ================= 版本扫描 ================= */
@@ -785,6 +931,7 @@ function scanVersions(){
           mainClass: meta.mainClass || '',
           installed,
           loader: loaderOfId(e.name),
+          inheritsFrom: meta.inheritsFrom || '',
           // 16.0：底层依赖保护
           userOriginal: fs.existsSync(path.join(dir, e.name, '.aoura-original')),
           isBase: (refs[e.name] || []).length > 0,
@@ -896,8 +1043,15 @@ async function buildLaunchCommand(meta, versionId){
   const jf = path.join(versionsDir(), versionId, versionId + '.json');
   let jar = path.join(versionsDir(), versionId, versionId + '.jar');
   if (!fs.existsSync(jar)){
-    // modloader 版本（inheritsFrom 原版）自身无 jar，使用继承链底层的原版主 jar；缺失则自动补下
-    jar = await ensureBaseJar(versionId);
+    // modloader 版本（inheritsFrom 原版）自身无 jar：把继承链底层的原版主 jar 复制进自身版本目录，
+    // 使「原版游戏依赖 + 模组底层」自包含在同一文件夹，不再依赖外部底层目录（避免误删底层导致缺少主程序）
+    const baseJar = await ensureBaseJar(versionId);
+    try {
+      fs.copyFileSync(baseJar, jar);
+      jar = jar;
+    } catch(e){
+      jar = baseJar; // 复制失败则退回引用底层原版 jar
+    }
   }
   const cp = [];
   const nativesToExtract = [];
@@ -941,7 +1095,8 @@ async function buildLaunchCommand(meta, versionId){
 
   const classpath = cp.join(path.delimiter);
   const mem = cfg.memory || 2048;
-  const jvmBase = ['-Xmx' + mem + 'M', '-Xms256M', '-Djava.library.path=' + nativesDir, '-cp', classpath];
+  // 20.4：JVM locale 兜底——Minecraft 26.x 存在语言设置回退英文的缺陷（Mojira MC-310197），options.txt 之外再加 JVM 参数双保险
+  const jvmBase = ['-Xmx' + mem + 'M', '-Xms256M', '-Duser.language=zh_CN', '-Duser.country=CN', '-Djava.library.path=' + nativesDir, '-cp', classpath];
   const auth = currentAuth();
   const placeholders = {
     '${version_name}': versionId,
@@ -958,9 +1113,13 @@ async function buildLaunchCommand(meta, versionId){
     '${resolution_width}': '1280',
     '${resolution_height}': '720',
     '${launcher_name}': 'AOURA',
-    '${launcher_version}': '18.2',
+    '${launcher_version}': '28.0.1',
     '${classpath}': classpath,
-    '${natives_directory}': nativesDir
+    '${natives_directory}': nativesDir,
+    // 28：Forge/NeoForge 的 JVM 参数依赖这两个占位符——缺失会致模块路径无效、securejarhandler 模块无法识别、
+    // --add-opens java.base/java.lang.invoke 失效，游戏启动即崩溃（ExceptionInInitializerError）
+    '${library_directory}': librariesDir(),
+    '${classpath_separator}': path.delimiter
   };
   const subst = s => s.replace(/\$\{[a-z_0-9]+\}/g, m => (m in placeholders ? placeholders[m] : m));
 
@@ -1011,7 +1170,16 @@ async function buildLaunchCommand(meta, versionId){
   // 试玩模式拦截：官方/原版版本不允许带 --demo 参数启动
   const demoHit = (args) => args.some(a => typeof a === 'string' && (a === '--demo' || a.startsWith('--demo')));
   if (demoHit(args)) throw new Error('该版本为试玩（demo）版本，无法正式游玩。AOURA 已在下载与版本列表中自动过滤试玩版本，请选择列表中的正式版本');
-  return { exe: resolveJavaExe(), args, nativesDir, classpath, gameDir: gd };
+  // 28：Java 17 不识别新版 Minecraft 的 --sun-misc-unsafe-memory-access=allow（Java 21+ 选项），
+  // 按实际 Java 主版本过滤，避免 JVM 直接拒绝启动（Unrecognized option）
+  const exe = resolveJavaExe(versionId);
+  const jMajor = detectJavaMajor(exe);
+  if (jMajor > 0 && jMajor < 21){
+    const before = args.length;
+    args = args.filter(a => !(typeof a === 'string' && a.startsWith('--sun-misc-unsafe-memory-access')));
+    if (args.length !== before) logLine('info', 'Java ' + jMajor + '：已自动移除 --sun-misc-unsafe-memory-access 参数（该选项需 Java 21+，移除后旧版 Java 可继续启动）');
+  }
+  return { exe, args, nativesDir, classpath, gameDir: gd };
 }
 
 function libPathFromName(name){
@@ -1037,18 +1205,24 @@ async function ensureLibraries(meta, versionId){
       missing.push({ path: lp, url: art ? art.url : null, name: lib.name });
     }
   });
-  for (const m of missing){
-    logLine('info', '补全依赖：' + m.path);
-    let url = m.url;
-    if (!url && m.name){
-      const g = m.name.split(':');
-      url = 'https://libraries.minecraft.net/' + libPathFromName(m.name);
+  // 19.3：缺失依赖 12 路并发补全（PCL 同款，大幅缩短启动等待）
+  const queue = missing.slice();
+  const LIB_CONC = 12;
+  async function libWorker(){
+    while (queue.length){
+      const m = queue.shift();
+      logLine('info', '补全依赖：' + m.path);
+      let url = m.url;
+      if (!url && m.name){
+        url = 'https://libraries.minecraft.net/' + libPathFromName(m.name);
+      }
+      if (!url) { logLine('warn', '缺少依赖且无下载地址：' + m.path); continue; }
+      const dest = path.join(librariesDir(), m.path);
+      try { await downloadWithRetry(mirrorUrl(url), dest, null, null, 2); }
+      catch(e){ logLine('warn', '依赖下载失败：' + m.path + '（' + e.message + '）'); }
     }
-    if (!url) { logLine('warn', '缺少依赖且无下载地址：' + m.path); continue; }
-    const dest = path.join(librariesDir(), m.path);
-    try { await downloadWithRetry(mirrorUrl(url), dest, null, null, 2); }
-    catch(e){ logLine('warn', '依赖下载失败：' + m.path + '（' + e.message + '）'); }
   }
+  await Promise.all(Array.from({ length: LIB_CONC }, libWorker));
 }
 
 async function ensureAssetIndex(meta, versionId){
@@ -1063,9 +1237,12 @@ async function ensureAssetIndex(meta, versionId){
   return idxId;
 }
 
-/* 18.2：写入游戏语言设置（PCL 同款）——版本隔离等全新游戏目录默认英文，启动前按用户设置写入 options.txt 语言 */
-function ensureGameLanguage(gd){
+/* 18.2：写入游戏语言设置（PCL 同款）——版本隔离等全新游戏目录默认英文，启动前按用户设置写入 options.txt 语言
+   20.3：显式确保 zh_cn.json 语言文件存在（26.x 语言文件在资源索引中，缺失时游戏回退英文，仅写 options.txt 不够） */
+async function ensureGameLanguage(gd, meta, versionId){
   try {
+    // 20.2：版本隔离/新装模组底层时游戏目录可能尚未创建，先补齐目录再写语言，避免 options.txt 写失败导致游戏英文
+    fs.mkdirSync(gd, { recursive: true });
     const optPath = path.join(gd, 'options.txt');
     const want = cfg.lang || 'zh_cn';
     const mkLine = 'lang:' + want + '\n';
@@ -1081,11 +1258,54 @@ function ensureGameLanguage(gd){
       fs.writeFileSync(optPath, mkLine, 'utf8');
       logLine('info', '已写入游戏语言：' + want + '（简体中文支持无需额外下载，Minecraft 官方语言文件随资源自动补齐）');
     }
+    // 20.3：语言文件兜底——确保 minecraft/lang/zh_cn.json 在 assets 对象目录存在，缺失立即补齐
+    try {
+      const idxId = meta && meta.assetIndex ? meta.assetIndex.id : versionId;
+      const idxPath = path.join(assetsDir(), 'indexes', idxId + '.json');
+      if (fs.existsSync(idxPath)){
+        const idx = JSON.parse(fs.readFileSync(idxPath, 'utf8'));
+        const o = (idx.objects || {})['minecraft/lang/zh_cn.json'];
+        if (o && o.hash){
+          const dest = path.join(assetsDir(), 'objects', o.hash.slice(0,2), o.hash);
+          if (!fs.existsSync(dest) || (fs.statSync(dest).size || 0) < (o.size || 1)){
+            logLine('info', '中文语言文件缺失，正在补齐 zh_cn.json …');
+            let langOk = false;
+            try {
+              await downloadWithRetry('https://resources.download.minecraft.net/' + o.hash.slice(0,2) + '/' + o.hash, dest, null, null, 3);
+              langOk = (fs.statSync(dest).size || 0) >= (o.size || 1);
+              if (langOk) logLine('info', '中文语言文件已补齐：' + o.hash);
+            } catch(err){ logLine('warn', '官方源中文语言文件下载失败：' + err.message); }
+            // 28：官方源失败 → 内置兜底语言文件（随安装包分发，保证主界面中文）
+            if (!langOk){
+              try {
+                const fb = path.join(__dirname, 'assets', 'zh_cn_fallback.json');
+                if (fs.existsSync(fb)){
+                  fs.mkdirSync(path.dirname(dest), { recursive: true });
+                  fs.copyFileSync(fb, dest);
+                  logLine('info', '中文语言文件已由内置兜底补齐（' + o.hash + '，部分新词条可能缺失）');
+                  langOk = true;
+                }
+              } catch(ef){ logLine('warn', '内置语言文件补齐失败：' + ef.message); }
+            }
+          }
+        }
+      }
+    } catch(e){}
   } catch(e){ logLine('warn', '写入游戏语言失败：' + e.message); }
 }
 
 /* 18.1：启动前校验并补齐缺失的游戏资源（PCL 同款做法，防止启动时缺文件崩溃） */
 async function ensureAssetObjects(meta, versionId){
+  // 18.4：若下载任务正在进行，避免与下载流程并发写同一批资源文件（Windows EPERM），提示等待
+  if (dlToken){
+    logLine('warn', '检测到下载任务正在进行，为避免资源文件冲突，请等待下载完成后启动游戏');
+    throw new Error('下载任务进行中，请等待其完成后启动游戏');
+  }
+  let res = { ok: true, missing: 0 };
+  await withAssetPhaseLock(async () => { res = await ensureAssetObjectsInner(meta, versionId); });
+  return res;
+}
+async function ensureAssetObjectsInner(meta, versionId){
   const idxId = meta.assetIndex ? meta.assetIndex.id : versionId;
   const idxDest = path.join(assetsDir(), 'indexes', idxId + '.json');
   if (!fs.existsSync(idxDest)) return { ok: true, missing: 0 };
@@ -1101,7 +1321,7 @@ async function ensureAssetObjects(meta, versionId){
   if (!missing.length) return { ok: true, missing: 0 };
   logLine('info', '检测到 ' + missing.length + ' 个资源缺失，启动前自动补齐（镜像 + 官方多源）…');
   send('game:progress', { stage: 'asset', done: 0, total: missing.length });
-  const CONC = 8;
+  const CONC = 32; // 28：资源补齐并发 16→32，配合单源探测，资源下载提速
   const queue = missing.slice();
   let doneCount = 0;
   const failed = [];
@@ -1157,9 +1377,56 @@ async function launchGame(versionId){
   logLine('info', '账户：' + auth.name + (auth.type === 'msa' ? '（微软正版）' : '（离线模式）') + ' · 内存：' + cfg.memory + ' MB');
   await ensureLibraries(meta, versionId);
   await ensureAssetIndex(meta, versionId);
+  // 28：Forge/NeoForge 启动前自动检查处理产物（srg/extra/client）——存量版本缺失时自动补齐，
+  // 不再需要手动点「待补齐」，也不会再出现 ModJarMetadata 的 Invalid paths 启动崩溃
+  if (versionId.includes('-forge-') || versionId.includes('-neoforge-')){
+    const isNeo = versionId.includes('-neoforge-');
+    const baseId = meta.inheritsFrom || versionId;
+    if (!probeForgeProcessed(versionId, baseId, isNeo)){
+      logLine('info', versionId + ' 缺少 Forge 处理产物（srg/extra/client），启动前自动补齐…');
+      try {
+        const g = isNeo ? 'net/neoforged/neoforge' : 'net/minecraftforge/forge';
+        // 28：installer 路径段 = {mc}-{ver}（如 1.20.1-47.3.39），不是 versionId（1.20.1-forge-47.3.39）
+        const vtag = versionId.replace(isNeo ? '-neoforge-' : '-forge-', '-');
+        const tmpI = path.join(cacheDir(), 'prelaunch-' + Date.now().toString(36) + '-installer.jar');
+        fs.mkdirSync(path.dirname(tmpI), { recursive: true });
+        const u1 = 'https://bmclapi2.bangbang93.com/maven/' + g + '/' + vtag + '/' + (isNeo ? 'neoforge-' : 'forge-') + vtag + '-installer.jar';
+        const u2 = isNeo
+          ? 'https://maven.neoforged.net/releases/' + g + '/' + vtag + '/' + (isNeo ? 'neoforge-' : 'forge-') + vtag + '-installer.jar'
+          : 'https://maven.minecraftforge.net/net/minecraftforge/forge/' + vtag + '/forge-' + vtag + '-installer.jar';
+        const f = await pickFastSource([u1, u2], 8000);
+        await multiSourceDownload([f, f === u2 ? u1 : u2].filter(Boolean), tmpI, null, 3);
+        await runForgeInstaller({ installerPath: tmpI, versionId, mc: baseId });
+        logLine('info', versionId + ' 处理产物已补齐（srg/extra/client）');
+      } catch(ie){
+        logLine('error', versionId + ' 启动前补齐处理产物失败：' + (ie.message || ie) + '（游戏可能无法启动，可重新安装底层后重试）');
+        throw new Error(versionId + ' 缺少 Forge 处理产物且自动补齐失败：' + (ie.message || ie) + '。请检查网络后重试，或重新安装该底层');
+      }
+    }
+  }
   await ensureAssetObjects(meta, versionId);
-  const cmd = await buildLaunchCommand(meta, versionId);
-  ensureGameLanguage(cmd.gameDir || (cfg.isolation ? path.join(versionsDir(), versionId) : gameDir()));
+  let cmd = await buildLaunchCommand(meta, versionId);
+  // 28：新版（1.21+/26.x）需要 Java 21+——检测到当前 Java 版本过低时自动下载 Java 21（国内镜像），装完自动继续启动
+  if (needsJava21(versionId) && cmd.exe && detectJavaMajor(cmd.exe) < 21){
+    const j21 = path.join(dataRoot(), 'java', 'jdk-21', process.platform === 'win32' ? 'bin/java.exe' : 'bin/java');
+    if (!fs.existsSync(j21)){
+      logLine('info', versionId + ' 需要 Java 21+，当前 Java 版本过低，正在自动下载 Java 21…');
+      try {
+        await installJava(21);
+        if (fs.existsSync(j21)){
+          cmd.exe = j21;
+          logLine('info', 'Java 21 安装完成：' + j21);
+        } else {
+          throw new Error('Java 21 安装后未找到可执行文件');
+        }
+      } catch(je){
+        logLine('error', 'Java 21 自动下载失败：' + (je.message || je) + '（已回退旧版 Java 并过滤不兼容参数，可稍后在设置中重试）');
+      }
+    } else if (cmd.exe !== j21){
+      cmd.exe = j21;
+    }
+  }
+  await ensureGameLanguage(cmd.gameDir || (cfg.isolation ? path.join(versionsDir(), versionId) : gameDir()), meta, versionId);
   if (cmd.exe === 'java'){
     // 系统 PATH 探测：确保 'java' 命令真实可用，避免 spawn java ENOENT 的晦涩报错
     try {
@@ -1180,8 +1447,8 @@ async function launchGame(versionId){
   return new Promise((resolve, reject) => {
     launchProcKilled = false;
     launchProc = spawn(cmd.exe, cmd.args, { cwd: cmd.gameDir, windowsHide: false });
-    // 每次成功拉起游戏进程累计一次启动次数（供"每 10 次弹正版引导"使用）
-    cfg.launchCount = (cfg.launchCount || 0) + 1; saveConfig();
+    // 18.5：仅在进程真正拉起成功后累计启动次数（供"每 10 次弹正版引导"使用），启动失败不再虚高计数
+    launchProc.on('spawn', () => { cfg.launchCount = (cfg.launchCount || 0) + 1; saveConfig(); });
     const onData = d => { const t = d.toString().replace(/\r?\n$/, ''); if (t) logLine('game', t); };
     launchProc.stdout.on('data', onData);
     launchProc.stderr.on('data', onData);
@@ -1216,10 +1483,19 @@ function stopGame(){
 
 /* ================= 下载中心 ================= */
 let dlToken = null;
+let resToken = null; // 20.2：当前资源（模组/光影/整合包）下载令牌
 async function fetchJson(url){
   const res = await httpFetch(url, { headers: { 'User-Agent': 'AOURA-Launcher/4.0' }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
+}
+// 19.3：JSON 请求带重试（Modrinth 等 API 偶发瞬断/限流，自动退避重试）
+async function retryJson(url, tries){
+  let lastErr;
+  for (let i = 0; i < (tries || 3); i++){
+    try { return await fetchJson(url); } catch(e){ lastErr = e; await sleepMs(400 * (i + 1)); }
+  }
+  throw lastErr || new Error('请求失败');
 }
 async function fetchText(url){
   const res = await httpFetch(url, { headers: { 'User-Agent': 'AOURA-Launcher/4.0' }, signal: AbortSignal.timeout(20000) });
@@ -1283,6 +1559,8 @@ async function fetchJsonBest(url, alt){
 async function getManifest(){
   const urls = cfg.mirror === 'bmclapi'
     ? ['https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json', 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json']
+    : cfg.mirror === 'fastmc'
+    ? ['https://launchermeta.fastmcmirror.org/mc/game/version_manifest_v2.json', 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json']
     : ['https://piston-meta.mojang.com/mc/game/version_manifest_v2.json'];
   // 测速选源：并行请求，任一成功即返回
   try {
@@ -1296,7 +1574,13 @@ async function getManifest(){
 async function downloadVersion(versionId, opts){
   if (dlToken) throw new Error('已有下载任务进行中');
   const markOriginal = !opts || opts.markOriginal !== false;
+  // 19.0：支持自定义版本名称（仅影响版本目录/文件名，版本元数据 id 保持官方原值以保证继承链正确）
+  const dirName = (opts && opts.name && String(opts.name).trim()) || versionId;
+  if (dirName !== versionId && /[\\/:*?"<>|]/.test(dirName)){
+    throw new Error('版本名称不能包含字符 \\ / : * ? " < > |');
+  }
   dlToken = makeToken();
+  let vdir = null; // 19.0：记录本次下载创建的版本目录，取消时自动清理
   try {
     const manifest = await getManifest();
     const v = manifest.versions.find(x => x.id === versionId);
@@ -1306,36 +1590,37 @@ async function downloadVersion(versionId, opts){
     if (/^demo/i.test(v.id || '')){
       throw new Error('该版本为试玩（demo）版本，请下载正式版本');
     }
-    send('download:progress', { task: '版本信息', phase: 'start' });
+    send('download:progress', { task: '版本信息', phase: 'start', loc: vdir || versionsDir() });
     const meta = await fetchJsonBest(v.url, 'https://bmclapi2.bangbang93.com/version/' + versionId + '/json');
     if (metaIsDemo(meta)){
       fs.rmSync(path.join(versionsDir(), versionId), { recursive: true, force: true });
       throw new Error('检测到该版本为试玩（demo）版本，已自动移除，请下载正式版本');
     }
-    const vdir = path.join(versionsDir(), versionId);
+    vdir = path.join(versionsDir(), dirName);
     fs.mkdirSync(vdir, { recursive: true });
-    fs.writeFileSync(path.join(vdir, versionId + '.json'), JSON.stringify(meta, null, 2));
+    fs.writeFileSync(path.join(vdir, dirName + '.json'), JSON.stringify(meta, null, 2));
     // 16.0：纯原版主动下载标记（作为模组底层自动创建的原版不标记，避免版本管理重复展示）
     if (markOriginal) fs.writeFileSync(path.join(vdir, '.aoura-original'), '1');
 
     // 1. 主 jar
     const jarUrl = meta.downloads && meta.downloads.client && meta.downloads.client.url;
     if (jarUrl){
-      const dest = path.join(vdir, versionId + '.jar');
+      const dest = path.join(vdir, dirName + '.jar');
       // 18.0：测速选主源（BMCLAPI 正确格式 vs 官方 piston-data），PCL 同款单主源分段
       const fast = await pickFastSource([
         'https://bmclapi2.bangbang93.com/version/' + versionId + '/client',
         jarUrl
       ]);
       await downloadWithRetry(fast, dest, dlToken, p => {
-        send('download:progress', { task: versionId, phase: 'jar', received: p.received, total: p.total });
+        send('download:progress', { task: versionId, loc: vdir, phase: 'jar', received: p.received, total: p.total });
       }, 3, fast === jarUrl ? 'https://bmclapi2.bangbang93.com/version/' + versionId + '/client' : jarUrl);
-      send('download:progress', { task: versionId, phase: 'jar', done: true });
+      send('download:progress', { task: versionId, loc: vdir, phase: 'jar', done: true });
     }
 
-    // 2. 依赖库
+    // 2. 依赖库（19.3：12 路并发下载，PCL 同款，避免逐库串行导致的龟速）
     let libTotal = (meta.libraries || []).length;
     let libIdx = 0;
+    const libQueue = [];
     for (const lib of meta.libraries || []){
       if (!rulesAllowed(lib.rules)) continue;
       if (lib.natives && lib.natives.windows) continue;
@@ -1343,24 +1628,58 @@ async function downloadVersion(versionId, opts){
       const lp = art ? art.path : (lib.name ? libPathFromName(lib.name) : null);
       if (!lp) continue;
       const dest = path.join(librariesDir(), lp);
-      if (fs.existsSync(dest)) { libIdx++; continue; }
+      if (fs.existsSync(dest)) continue;
       let url = art && art.url;
       if (!url && lib.name) url = 'https://libraries.minecraft.net/' + libPathFromName(lib.name);
-      if (!url) { libIdx++; continue; }
-      try {
-        await downloadWithRetry(mirrorUrl(url), dest, dlToken, p => {
-          send('download:progress', { task: versionId, phase: 'lib', name: lp, received: p.received, total: p.total, index: libIdx, totalLibs: libTotal });
-        }, 3);
-      } catch(e){
-        if (e.message === 'CANCELLED') throw e;
-        logLine('warn', '库下载失败（继续）：' + lp + ' ' + e.message);
-      }
-      libIdx++;
-      send('download:progress', { task: versionId, phase: 'lib', done: true, index: libIdx, totalLibs: libTotal });
+      if (!url) continue;
+      libQueue.push({ dest, url, lp });
     }
-    send('download:progress', { task: versionId, phase: 'lib', allDone: true });
+    const LIB_CONC = 12;
+    const libFailed = [];
+    async function libWorker(){
+      while (libQueue.length){
+        if (isCancelled(dlToken)) throw new Error('CANCELLED');
+        const item = libQueue.shift();
+        libIdx++;
+        try {
+          await downloadWithRetry(mirrorUrl(item.url), item.dest, dlToken, p => {
+            send('download:progress', { task: versionId, loc: vdir, phase: 'lib', name: item.lp, received: p.received, total: p.total, index: libIdx, totalLibs: libTotal });
+          }, 3);
+        } catch(e){
+          if (e.message === 'CANCELLED') throw e;
+          libFailed.push(item);
+          logLine('warn', '库下载失败（稍后补）：' + item.lp + ' ' + e.message);
+        }
+        send('download:progress', { task: versionId, loc: vdir, phase: 'lib', done: true, index: libIdx, totalLibs: libTotal });
+      }
+    }
+    await Promise.all(Array.from({ length: LIB_CONC }, libWorker));
+    // 19.3：失败库补一轮（避免启动时缺库导致无法进入游戏）
+    for (const item of libFailed){
+      if (isCancelled(dlToken)) throw new Error('CANCELLED');
+      try { await downloadWithRetry(mirrorUrl(item.url), item.dest, dlToken, null, 3); }
+      catch(e){ logLine('error', '库下载失败：' + item.lp + '（' + (e.message || e) + '）'); }
+    }
+    send('download:progress', { task: versionId, loc: vdir, phase: 'lib', allDone: true });
 
-    // 3. 资产索引 + 资产文件
+    // 3. 资产索引 + 资产文件（18.4：与启动前补齐互斥，防止并发写同文件 EPERM）
+    await withAssetPhaseLock(async () => { await downloadAssetsPhase(meta, versionId, dlToken); });
+    send('download:progress', { task: versionId, loc: vdir, phase: 'allDone' });
+  } finally {
+    const cancelled = !!dlToken && isCancelled(dlToken);
+    if (dlToken) cancelToken(dlToken);
+    dlToken = null;
+    // 19.0：取消下载时自动清理本次下载创建的版本目录（半成品），避免残留版本再次出现在主页/版本管理
+    if (cancelled && vdir){
+      try {
+        fs.rmSync(vdir, { recursive: true, force: true });
+        logLine('warn', '下载已取消，已自动清理未完成的版本文件：' + dirName);
+      } catch(e){}
+    }
+  }
+}
+/* 资产索引 + 资产文件（下载任务的资产阶段，独立函数便于互斥锁包裹） */
+async function downloadAssetsPhase(meta, versionId, dlToken){
     const idxId = meta.assetIndex ? meta.assetIndex.id : versionId;
     const idxDest = path.join(assetsDir(), 'indexes', idxId + '.json');
     if (!fs.existsSync(idxDest) && meta.assetIndex && meta.assetIndex.url){
@@ -1373,7 +1692,7 @@ async function downloadVersion(versionId, opts){
       const objs = Object.keys(idx.objects || {});
       const totalObjs = objs.length;
       let doneObjs = 0;
-      const CONC = 6;
+      const CONC = 16;
       const queue = objs.slice();
       const failedAssets = [];
       async function worker(){
@@ -1407,13 +1726,8 @@ async function downloadVersion(versionId, opts){
       }
       if (isCancelled(dlToken)) throw new Error('CANCELLED');
     }
-    send('download:progress', { task: versionId, phase: 'allDone' });
-  } finally {
-    if (dlToken) cancelToken(dlToken);
-    dlToken = null;
-  }
 }
-function cancelDownload(){ if (dlToken) cancelToken(dlToken); }
+function cancelDownload(){ if (dlToken) cancelToken(dlToken); if (resToken) cancelToken(resToken); }
 
 /* ================= Modrinth 资源 ================= */
 async function modrinthSearch(query, type, limit, version, loader){
@@ -1442,6 +1756,20 @@ async function modrinthSearch(query, type, limit, version, loader){
 async function modrinthProject(projectId){
   const proj = await fetchJson('https://api.modrinth.com/v2/project/' + projectId);
   const vers = await fetchJson('https://api.modrinth.com/v2/project/' + projectId + '/version');
+  // 20.3：收集 required 前置依赖（部分模组必须安装前置才能运行），供详情页一键跳转下载
+  const depIds = [];
+  for (const v of vers){
+    for (const d of (v.dependencies || [])){
+      if (d.dependency_type === 'required' && d.project_id && !depIds.includes(d.project_id)) depIds.push(d.project_id);
+    }
+  }
+  let deps = [];
+  if (depIds.length){
+    try {
+      const arr = await fetchJson('https://api.modrinth.com/v2/projects?ids=' + encodeURIComponent(JSON.stringify(depIds)));
+      deps = (arr || []).map(x => ({ id: x.id, title: x.title, icon: x.icon_url || '', downloads: x.downloads || 0, author: x.author || '' }));
+    } catch(e){ logLine('warn', '获取前置模组信息失败：' + e.message); }
+  }
   return {
     id: proj.id,
     slug: proj.slug,
@@ -1463,26 +1791,67 @@ async function modrinthProject(projectId){
       loaders: v.loaders || [],
       files: (v.files || []).map(f => ({ url: f.url, filename: f.filename, size: f.size })),
       date: v.date_published || ''
-    }))
+    })),
+    deps
   };
 }
 async function modrinthDownloadVersion(projectId, versionId, type){
   const sub = type === 'shader' ? 'shaderpacks' : type === 'resourcepack' ? 'resourcepacks' : type === 'modpack' ? 'modpacks' : 'mods';
-  const destDir = path.join(gameDir(), sub);
+  // 20.4：模组/光影/资源包下载目录跟随「当前版本」——版本隔离时进入该版本的独立目录，与游戏实际读取位置一致；
+  // 整合包（modpacks）为导入用中转区，保持共享目录不变
+  const destDir = sub === 'modpacks'
+    ? path.join(gameDir(), sub)
+    : (cfg.isolation && cfg.currentVersion
+      ? path.join(versionsDir(), cfg.currentVersion, sub)
+      : path.join(gameDir(), sub));
   fs.mkdirSync(destDir, { recursive: true });
-  const ver = await fetchJson('https://api.modrinth.com/v2/version/' + versionId);
+  const ver = await retryJson('https://api.modrinth.com/v2/version/' + versionId, 4);
   const f = ver.files && ver.files[0];
   if (!f) throw new Error('该版本暂无可用文件');
   const token = makeToken();
+  resToken = token; // 20.2：挂全局，任务中心取消时一并取消资源下载
   const dest = path.join(destDir, f.filename);
-  await downloadWithRetry(f.url, dest, token, p => {
-    send('download:progress', { task: '资源下载', phase: sub, name: f.filename, received: p.received, total: p.total });
-  }, 3);
+  // 19.0：优先官方 CDN（cdn.modrinth.com）下载；失败自动切换 Modrinth 官方下载端点（302 重定向至文件），多源轮询兜底
+  const urls = [f.url];
+  if (/cdn\.modrinth\.com/i.test(f.url)){
+    urls.push('https://api.modrinth.com/v2/version/' + versionId + '/download');
+  }
+  // 19.4：双源实测测速选最快者作主源（CDN 与 API 端点可能走不同边缘节点，国内速度差异明显）
+  try {
+    const fast = await pickFastSource(urls, 6000);
+    if (fast && fast !== urls[0]) urls.unshift(urls.splice(urls.indexOf(fast), 1)[0]);
+  } catch(e){}
+  await multiSourceDownload(urls, dest, p => {
+    send('download:progress', { task: '资源下载', phase: sub, name: f.filename, received: p.received, total: p.total, loc: destDir });
+  }, 4);
   cancelToken(token);
+  // 19.2：整合包下载完成后自动导入（弹窗必现+成败必达），压缩包保留在 modpacks 目录并告知用户
+  if (type === 'modpack'){
+    const pkName = f.filename || path.basename(dest);
+    send('pack:importProgress', { name: pkName, pct: 0, status: '开始导入整合包…', path: destDir });
+    try {
+      const imp = await importPackFromFile(dest, prog => {
+        send('pack:importProgress', { name: pkName, pct: prog.pct, status: prog.status, path: destDir });
+      });
+      if (imp && imp.ok){
+        send('pack:importProgress', { name: pkName, pct: 100, status: '导入完成：' + (imp.name || pkName), ok: true, path: destDir });
+        return { file: f.filename, dir: destDir, imported: true, importOk: true, importName: imp.name };
+      }
+      const msg = (imp && imp.msg) || '导入失败';
+      send('pack:importProgress', { name: pkName, pct: 100, status: msg, ok: false, path: destDir });
+      logLine('warn', '整合包导入失败：' + msg + '（压缩包保留在 ' + destDir + '）');
+      return { file: f.filename, dir: destDir, imported: true, importOk: false, importErr: msg };
+    } catch(e){
+      const msg = String(e && e.message || e);
+      send('pack:importProgress', { name: pkName, pct: 100, status: '导入失败：' + msg, ok: false, path: destDir });
+      logLine('warn', '整合包导入异常：' + msg);
+      return { file: f.filename, dir: destDir, imported: true, importOk: false, importErr: msg };
+    }
+  }
   return { file: f.filename, dir: destDir };
 }
 async function modrinthDownload(projectId, type){
-  const ver = await fetchJson('https://api.modrinth.com/v2/project/' + projectId + '/version');
+  const ver = await retryJson('https://api.modrinth.com/v2/project/' + projectId + '/version', 4);
   if (!ver || !ver.length) throw new Error('该项目暂无可用文件');
   return modrinthDownloadVersion(projectId, ver[0].id, type);
 }
@@ -1516,24 +1885,50 @@ async function forgeVersionsFor(mc){
       .slice(0, 30);
   } catch(e){ return []; }
 }
-async function forgePromos(){
+async function forgeFallbackCandidates(mc, want){
+  // 28：返回与 want 同系列的候选版本（排除 want 本身——它的 installer 已确认 404），
+  // 按「同 minor > 同 major > 最新」优先级排序，供导入流程逐个尝试
   try {
-    const p = await fetchJson('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+    const list = await retryJson('https://bmclapi2.bangbang93.com/forge/minecraft/' + mc, 2);
+    const builds = (list || []).filter(b => b && b.version).sort((a,b) => (b.build||0) - (a.build||0));
+    const versions = builds.map(b => String(b.version));
+    if (!versions.length) return [];
+    const w = String(want).split('.').map(Number);
+    const cand = versions.filter(v => v !== want);
+    const rank = v => { const p = String(v).split('.').map(Number); let s = 0; if (p[0] === w[0]) s += 100; if (p[1] === w[1]) s += 50; return s; };
+    return cand.sort((a,b) => (rank(b) - rank(a)) || verCmp(b,a));
+  } catch(e){ logLine('warn', 'Forge 回退版本列表获取失败：' + e.message); return []; }
+}
+async function forgePromos(mc){
+  try {
+    const p = await fetchJsonBest('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json', 'https://bmclapi2.bangbang93.com/forge/promotions_slim.json');
     const promos = p.promos || {};
     const out = [];
     const seen = {};
     Object.keys(promos).forEach(k => {
       const m = k.match(/^([\d.]+)-(recommended|latest)$/);
       if (!m) return;
-      const [mc, tier] = [m[1], m[2]];
+      const [mcv, tier] = [m[1], m[2]];
       const ver = promos[k];
       if (!ver) return;
-      if (!seen[mc] || (tier === 'recommended' && seen[mc].tier !== 'recommended')) seen[mc] = { ver, tier };
+      if (!seen[mcv] || (tier === 'recommended' && seen[mcv].tier !== 'recommended')) seen[mcv] = { ver, tier };
     });
-    Object.keys(seen).forEach(mc => out.push({ mc, forge: seen[mc].ver, tier: seen[mc].tier }));
+    Object.keys(seen).forEach(mcv => out.push({ mc: mcv, forge: seen[mcv].ver, tier: seen[mcv].tier }));
     out.sort((a,b) => a.mc.localeCompare(b.mc, undefined, { numeric: true }));
-    return out.slice(-30);
-  } catch(e){ return []; }
+    if (out.length) return out.slice(-30);
+    throw new Error('promotions 为空');
+  } catch(e){
+    // 20.5：files.minecraftforge.net 当前不可达、bmclapi2 的 promotions_slim.json 已下线（404），
+    // 改用其 forge/minecraft/{mc} 版本列表兜底（实测可用），推荐分支优先、无则取最新 build
+    try {
+      if (!mc) return [];
+      const list = await fetchJson('https://bmclapi2.bangbang93.com/forge/minecraft/' + mc);
+      const builds = (list || []).filter(b => b && b.version).sort((a,b) => (b.build||0) - (a.build||0));
+      const best = builds.find(b => b.branch === 'recommended') || builds[0];
+      if (best) return [{ mc, forge: String(best.version), tier: 'recommended' }];
+    } catch(e2){ logLine('warn', 'Forge 版本列表兜底失败：' + e2.message); }
+    return [];
+  }
 }
 async function neoforgeVersions(mc){
   try {
@@ -1608,6 +2003,74 @@ async function patchForgeClient({ mc, versionTag, installerPath, outPath }){
   if (!fs.existsSync(outPath) || (fs.statSync(outPath).size || 0) < 1000) throw new Error('patcher 未生成 client 主程序');
   return outPath;
 }
+/* ============ Forge/NeoForge 处理产物（srg/extra/client jar）——官方安装器 processors ============ */
+// 1.20+ 的 Forge 安装 = 下载库（installLoader 已做） + 官方安装器处理器：
+//   jarsplitter 从原版 client.jar 拆出 slim/extra → ForgeAutoRenamingTool 重命名出 srg → binarypatcher 打出 forge-client.jar。
+//   三个产物缺失时游戏在 ModJarMetadata 扫描即崩（Invalid paths argument）。PCL 同款做法：直接运行官方安装器。
+function probeForgeProcessed(versionId, mc, isNeo){
+  const L = librariesDir();
+  let srg = '', extra = '';
+  try {
+    const dirs = fs.readdirSync(path.join(L, 'net/minecraft/client')).filter(d => d.startsWith(mc + '-'));
+    for (const d of dirs){
+      const files = fs.readdirSync(path.join(L, 'net/minecraft/client', d));
+      const s = files.find(x => x.endsWith('-srg.jar'));
+      const e = files.find(x => x.endsWith('-extra.jar'));
+      if (s && !srg) srg = path.join(L, 'net/minecraft/client', d, s);
+      if (e && !extra) extra = path.join(L, 'net/minecraft/client', d, e);
+    }
+  } catch(e){}
+  const g = isNeo ? 'net/neoforged/neoforge' : 'net/minecraftforge/forge';
+  const clientJar = path.join(L, g, versionId, (isNeo ? 'neoforge-' : 'forge-') + versionId + '-client.jar');
+  if (!srg || !extra || !fs.existsSync(clientJar)) return false;
+  try {
+    return fs.statSync(srg).size > 1000 && fs.statSync(extra).size > 1000 && fs.statSync(clientJar).size > 1000;
+  } catch(e){ return false; }
+}
+function forgeProcessedJarPaths(installerPath, versionId, mc){
+  const zip = new AdmZip(installerPath);
+  const profEntry = zip.getEntries().find(e => e.entryName === 'install_profile.json');
+  if (!profEntry) throw new Error('安装信息缺少 install_profile.json');
+  const prof = JSON.parse(zip.readAsText(profEntry));
+  const isNeo = String(prof.json || '').includes('neoforge') || (prof.processors || []).some(p => String(p.jar || '').includes('neoforge'));
+  const mcpRaw = (prof.data && prof.data.MCP_VERSION && prof.data.MCP_VERSION.client) || '';
+  const mcpVer = String(mcpRaw).replace(/^'+|'+$/g, '');
+  const L = librariesDir();
+  const group = isNeo ? 'net/neoforged/neoforge' : 'net/minecraftforge/forge';
+  return {
+    isNeo,
+    mcpVer,
+    srg: path.join(L, 'net/minecraft/client/' + mc + '-' + mcpVer + '/client-' + mc + '-' + mcpVer + '-srg.jar'),
+    extra: path.join(L, 'net/minecraft/client/' + mc + '-' + mcpVer + '/client-' + mc + '-' + mcpVer + '-extra.jar'),
+    client: path.join(L, group + '/' + versionId + '/' + (isNeo ? 'neoforge-' : 'forge-') + versionId + '-client.jar'),
+  };
+}
+async function runForgeInstaller({ installerPath, versionId, mc }){
+  const pp = forgeProcessedJarPaths(installerPath, versionId, mc);
+  const ok = [pp.srg, pp.extra, pp.client].every(p => fs.existsSync(p) && (fs.statSync(p).size || 0) > 1000);
+  if (ok) return pp;
+  const jbin = javaBin();
+  if (!jbin) throw new Error('运行安装器需要 Java 运行时，请先在「设置 → Java 环境」下载 Java 后重试');
+  // 官方安装器要求 launcher_profiles.json 存在（否则报 There is no minecraft launcher profile）
+  const launcherProf = path.join(gameDir(), 'launcher_profiles.json');
+  if (!fs.existsSync(launcherProf)){
+    fs.mkdirSync(gameDir(), { recursive: true });
+    const crypto = require('crypto');
+    const cid = (crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000');
+    fs.writeFileSync(launcherProf, JSON.stringify({ profiles: {}, selectedProfile: '(Default)', clientToken: cid, launcherVersion: 27 }, null, 2));
+  }
+  logLine('info', '运行官方 ' + (pp.isNeo ? 'NeoForge' : 'Forge') + ' 安装器生成客户端补丁（首次 1-5 分钟，库已预置仅补处理产物）…');
+  send('installer:progress', { type: pp.isNeo ? 'neoforge' : 'forge', mc, loader: versionId, stage: 'installer', status: '正在生成客户端补丁（官方安装器）…' });
+  const r = require('child_process').spawnSync(jbin, ['-jar', installerPath, '--installClient', gameDir()], { timeout: 600000, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  if (r.error) throw new Error('运行 ' + (pp.isNeo ? 'NeoForge' : 'Forge') + ' 安装器失败：' + r.error.message);
+  if (r.status !== 0){
+    const tail = String(r.stderr || r.stdout || '').slice(-600);
+    throw new Error((pp.isNeo ? 'NeoForge' : 'Forge') + ' 安装器退出码 ' + r.status + '：' + tail);
+  }
+  const ok2 = [pp.srg, pp.extra, pp.client].every(p => fs.existsSync(p) && (fs.statSync(p).size || 0) > 1000);
+  if (!ok2) throw new Error('安装器执行完成但未生成全部客户端补丁（srg/extra/client），请重试');
+  return pp;
+}
 async function installLoader(opts){
   if (loaderBusy) throw new Error('已有加载器安装任务进行中');
   loaderBusy = true;
@@ -1616,18 +2079,33 @@ async function installLoader(opts){
   fs.mkdirSync(tmp, { recursive: true });
   try {
     let versionId = '', jsonObj = null, libs = [], useMavenPath = true;
+    let instJarPath = ''; // 28：Forge 安装器 jar 路径（子块内声明，供集成点使用）
     if (type === 'fabric'){
-      // Fabric：官方 meta 直接给出完整 profile（无需运行安装器）
-      const meta = await fetchJson('https://meta.fabricmc.net/v2/versions/loader/' + mc);
+      // Fabric：官方 meta 直接给出完整 profile（无需运行安装器）；28 加重试防瞬断
+      const meta = await retryJson('https://meta.fabricmc.net/v2/versions/loader/' + mc, 3);
       const picked = meta.find(x => x.loader.version === loader) || meta.find(x => x.loader.stable) || meta[0];
       if (!picked || !picked.loader) throw new Error('未找到 ' + mc + ' 的 Fabric 加载器版本');
-      const prof = await fetchJson('https://meta.fabricmc.net/v2/versions/loader/' + mc + '/' + picked.loader.version + '/profile/json');
+      const prof = await retryJson('https://meta.fabricmc.net/v2/versions/loader/' + mc + '/' + picked.loader.version + '/profile/json', 3);
       if (!prof || !prof.id) throw new Error('Fabric 版本描述解析失败（请检查网络后重试）');
       versionId = prof.id;
       jsonObj = prof;
       libs = (prof.libraries || []).filter(l => l.name).map(l => ({
         name: l.name,
         url: (l.url || 'https://maven.fabricmc.net/') + libPathFromName(l.name)
+      }));
+      useMavenPath = true;
+    } else if (type === 'quilt'){
+      // 20.1：Quilt（兼容 Fabric 模组的加载器）：官方 meta 直接给出完整 profile；28 加重试防瞬断
+      const meta = await retryJson('https://meta.quiltmc.org/v3/versions/loader/' + mc, 3);
+      const picked = meta.find(x => x.loader.version === loader) || meta.find(x => x.loader.stable) || meta[0];
+      if (!picked || !picked.loader) throw new Error('未找到 ' + mc + ' 的 Quilt 加载器版本');
+      const prof = await retryJson('https://meta.quiltmc.org/v3/versions/loader/' + mc + '/' + picked.loader.version + '/profile/json', 3);
+      if (!prof || !prof.id) throw new Error('Quilt 版本描述解析失败（请检查网络后重试）');
+      versionId = prof.id;
+      jsonObj = prof;
+      libs = (prof.libraries || []).filter(l => l.name).map(l => ({
+        name: l.name,
+        url: (l.url || 'https://maven.quiltmc.org/repository/release/') + libPathFromName(l.name)
       }));
       useMavenPath = true;
     } else {
@@ -1642,44 +2120,77 @@ async function installLoader(opts){
         if (!versionTag) throw new Error('未找到 ' + mc + ' 的 NeoForge 版本');
       } else {
         if (!versionTag){
-          const promos = await forgePromos();
+          const promos = await forgePromos(mc);
           const hit = promos.find(p => p.mc === mc) || promos.find(p => mc.startsWith(p.mc + '-'));
           versionTag = hit ? mc + '-' + hit.forge : '';
         }
         if (!versionTag) throw new Error('未找到 ' + mc + ' 的 Forge 推荐版本');
       }
-      const jarUrl = isNeo
+      // 28：与 PCL 同款下载源——BMCLAPI maven 代理（国内可达、有缓存）首选，官方 maven / files 存档备选
+      const jarBmcl = isNeo
+        ? 'https://bmclapi2.bangbang93.com/maven/net/neoforged/neoforge/' + versionTag + '/neoforge-' + versionTag + '-installer.jar'
+        : 'https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/' + versionTag + '/forge-' + versionTag + '-installer.jar';
+      const jarOfficial = isNeo
         ? 'https://maven.neoforged.net/releases/net/neoforged/neoforge/' + versionTag + '/neoforge-' + versionTag + '-installer.jar'
         : 'https://maven.minecraftforge.net/net/minecraftforge/forge/' + versionTag + '/forge-' + versionTag + '-installer.jar';
+      const jarFiles = isNeo ? '' : 'https://files.minecraftforge.net/maven/net/minecraftforge/forge/' + versionTag + '/forge-' + versionTag + '-installer.jar';
       send('installer:progress', { type, mc, loader: versionTag, stage: 'download' });
       const dest = path.join(tmp, (isNeo ? 'neoforge' : 'forge') + '-installer.jar');
-      const instFast = await pickFastSource([mirrorUrl(jarUrl), jarUrl], 10000);
-      await multiSourceDownload([instFast, jarUrl === instFast ? mirrorUrl(jarUrl) : jarUrl].filter(Boolean), dest, p => {
-        send('installer:progress', { type, mc, loader: versionTag, stage: 'download', received: p.received, total: p.total });
-      }, 3);
+      instJarPath = dest;
+      let versionTagFinal = versionTag;
+      try {
+        const instFast = await pickFastSource([jarBmcl, jarOfficial, jarFiles].filter(Boolean), 10000);
+        await multiSourceDownload([jarBmcl, jarOfficial, jarFiles].filter(Boolean), dest, p => {
+          send('installer:progress', { type, mc, loader: versionTag, stage: 'download', received: p.received, total: p.total });
+        }, 3);
+      } catch(e){
+        // 28/28：installer 404/网络失败 → 候选版本逐个下载（整合包常声明已撤下的小版本）
+        if (isNeo) throw e;
+        const cands = await forgeFallbackCandidates(mc, versionTag);
+        let altOk = '', altErr = e;
+        for (const c of cands.slice(0, 6)){
+          const cBmcl = 'https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/' + mc + '-' + c + '/forge-' + mc + '-' + c + '-installer.jar';
+          const cOff = 'https://maven.minecraftforge.net/net/minecraftforge/forge/' + mc + '-' + c + '/forge-' + mc + '-' + c + '-installer.jar';
+          try {
+            const cFast = await pickFastSource([cBmcl, cOff], 8000);
+            await multiSourceDownload([cBmcl, cOff].filter(Boolean), dest, p => {
+              send('installer:progress', { type, mc, loader: c, stage: 'download', received: p.received, total: p.total });
+            }, 3);
+            altOk = c; break;
+          } catch(ce){ altErr = ce; logLine('warn', 'Forge 回退候选 ' + c + ' 仍失败：' + ce.message); }
+        }
+        if (!altOk) throw altErr;
+        logLine('warn', 'Forge ' + versionTag + ' 安装器不可用，自动回退至 ' + altOk);
+        versionTagFinal = altOk;
+      }
       // 解压安装描述：install_profile.json（库清单）+ version.json（版本描述，inheritsFrom 原版）
       let zip;
-      try { zip = new AdmZip(dest); } catch(e){ throw new Error(versionTag + ' 安装器文件损坏：' + e.message); }
+      try { zip = new AdmZip(dest); } catch(e){ throw new Error(versionTagFinal + ' 安装器文件损坏：' + e.message); }
       const profEntry = zip.getEntries().find(e => e.entryName === 'install_profile.json');
-      if (!profEntry) throw new Error(versionTag + ' 安装信息解析失败（缺少 install_profile.json）');
+      if (!profEntry) throw new Error(versionTagFinal + ' 安装信息解析失败（缺少 install_profile.json）');
       const prof = JSON.parse(zip.readAsText(profEntry));
       const vjName = String(prof.json || 'version.json').replace(/^\//, '');
       const vjEntry = zip.getEntries().find(e => e.entryName === vjName || e.entryName === 'version.json');
-      if (!vjEntry) throw new Error(versionTag + ' 安装信息解析失败（缺少版本描述文件）');
+      if (!vjEntry) throw new Error(versionTagFinal + ' 安装信息解析失败（缺少版本描述文件）');
       const vj = JSON.parse(zip.readAsText(vjEntry));
-      if (!vj.id) throw new Error(versionTag + ' 版本描述不完整');
+      if (!vj.id) throw new Error(versionTagFinal + ' 版本描述不完整');
       versionId = vj.id;
       jsonObj = vj;
       const profLibs = (prof.libraries || []).filter(l => l.downloads && l.downloads.artifact && l.downloads.artifact.url).map(l => ({
         name: l.name,
         url: l.downloads.artifact.url
       }));
-      // 运行时库（version.json）可能与安装清单不同：按仓库根拼 URL 一并预置
+      // 运行时库（version.json）可能与安装清单不同：优先库自身声明的 URL（libraries.minecraft.net / maven 各有归属），
+      // 缺省按官方仓库根拼接；下载时 mirrorUrl 自动映射 BMCLAPI（/maven/、/libraries/），
+      // 镜像缺失的库（BMCLAPI 部分缓存 404）自动回退官方源 —— 与 PCL 完全同款的多源容错
       const repoRoot = isNeo ? 'https://maven.neoforged.net/releases/' : 'https://maven.minecraftforge.net/';
-      const vjLibs = (vj.libraries || []).filter(l => l.name && !l.natives).map(l => ({
-        name: l.name,
-        url: repoRoot + libPathFromName(l.name)
-      }));
+      const vjLibs = (vj.libraries || []).filter(l => l.name && !l.natives).map(l => {
+        const art = l.downloads && l.downloads.artifact;
+        return {
+          name: l.name,
+          url: (art && art.url) ? art.url : (repoRoot + libPathFromName(l.name))
+        };
+      });
       const seenRel = {};
       libs = [];
       [...profLibs, ...vjLibs].forEach(l => {
@@ -1692,63 +2203,129 @@ async function installLoader(opts){
     }
     if (!libs.length) throw new Error(type.toUpperCase() + ' 安装清单为空，请检查网络后重试');
 
-    // 预下载全部库：镜像优先 → 官方兜底，多源重试；失败库最后统一补一轮
+    // 预下载全部库：镜像优先 → 官方兜底，多源重试；12 路并发（大幅提速并降低单库超时概率），失败库统一补两轮
     const total = libs.length;
     send('installer:progress', { type, mc, loader: versionId, stage: 'download', libTotal: total, libDone: 0 });
     let done = 0;
     const failed = [];
-    for (const l of libs){
-      const rel = useMavenPath ? (l.rel || libPathFromName(l.name)) : (l.rel || (l.path || libPathFromName(l.name)));
-      const destPath = path.join(librariesDir(), rel);
-      if (fs.existsSync(destPath) && (fs.statSync(destPath).size || 0) > 1000){
-        done++;
-        continue;
-      }
-      try {
-        const libFast = await pickFastSource([mirrorUrl(l.url), l.url], 8000);
-        await multiSourceDownload([libFast, libFast === l.url ? mirrorUrl(l.url) : l.url].filter(Boolean), destPath, null, 3);
-      } catch(e){
-        // 新版 Forge（26.x）：forge:...:client（patched minecraft）在 maven 上不存在，
-        // 必须用安装器内置 binarypatcher 对原版 jar 本地打补丁生成
-        const cm = l.name && l.name.match(/^net\.minecraftforge:forge:([^:]+):client$/);
-        if (cm){
-          send('installer:progress', { type, mc, loader: versionId, stage: 'patch' });
-          try {
-            await patchForgeClient({ mc, versionTag, installerPath: dest, outPath: destPath });
-            logLine('info', l.name + ' 已由 Forge patcher 本地生成（patched minecraft）');
-            done++;
-            continue;
-          } catch(pe){
-            failed.push({ name: l.name, rel: rel, url: l.url });
-            logLine('error', l.name + ' 本地生成失败：' + pe.message);
-            done++;
-            continue;
-          }
+    const libQueue = libs.slice();
+    const CONC_LOADER = 12;
+    async function libWorker(){
+      while (libQueue.length){
+        const l = libQueue.shift();
+        if (!l) return;
+        const rel = useMavenPath ? (l.rel || libPathFromName(l.name)) : (l.rel || (l.path || libPathFromName(l.name)));
+        const destPath = path.join(librariesDir(), rel);
+        if (fs.existsSync(destPath) && (fs.statSync(destPath).size || 0) > 1000){
+          done++;
+          continue;
         }
-        failed.push({ name: l.name, rel: rel, url: l.url });
+        try {
+          const libFast = await pickFastSource([mirrorUrl(l.url), l.url], 8000);
+          await multiSourceDownload([libFast, libFast === l.url ? mirrorUrl(l.url) : l.url].filter(Boolean), destPath, null, 3);
+        } catch(e){
+          // 新版 Forge（26.x）：forge:...:client（patched minecraft）在 maven 上不存在，
+          // 必须用安装器内置 binarypatcher 对原版 jar 本地打补丁生成
+          const cm = l.name && l.name.match(/^net\.minecraftforge:forge:([^:]+):client$/);
+          if (cm){
+            send('installer:progress', { type, mc, loader: versionId, stage: 'patch' });
+            try {
+              await patchForgeClient({ mc, versionTag: versionTagFinal, installerPath: dest, outPath: destPath });
+              logLine('info', l.name + ' 已由 Forge patcher 本地生成（patched minecraft）');
+              done++;
+              continue;
+            } catch(pe){
+              failed.push({ name: l.name, rel: rel, url: l.url });
+              logLine('error', l.name + ' 本地生成失败：' + pe.message);
+              done++;
+              continue;
+            }
+          }
+          failed.push({ name: l.name, rel: rel, url: l.url });
+        }
+        done++;
+        send('installer:progress', { type, mc, loader: versionId, stage: 'download', libTotal: total, libDone: done });
       }
-      done++;
-      send('installer:progress', { type, mc, loader: versionId, stage: 'download', libTotal: total, libDone: done });
     }
-    // 补一轮失败的库
-    for (const f of failed){
-      const destPath = path.join(librariesDir(), f.rel);
-      try {
-        const fFast = await pickFastSource([mirrorUrl(f.url), f.url], 8000);
-        await multiSourceDownload([fFast, fFast === f.url ? mirrorUrl(f.url) : f.url].filter(Boolean), destPath, null, 5);
-        const i = failed.indexOf(f);
-        if (i >= 0) failed.splice(i, 1);
-      } catch(e){ logLine('error', '库文件下载失败：' + f.name + ' ' + f.rel + '（' + (e.message || e) + '）'); }
+    await Promise.all(Array.from({ length: CONC_LOADER }, libWorker));
+    // 补两轮失败的库（第二轮起反序：官方优先、镜像兜底，提升镜像抖动期的成功率）
+    for (let round = 0; round < 2 && failed.length; round++){
+      const pend = failed.splice(0);
+      await Promise.all(pend.map(async f => {
+        const destPath = path.join(librariesDir(), f.rel);
+        try {
+          const fFast = await pickFastSource([f.url, mirrorUrl(f.url)], 8000);
+          await multiSourceDownload([fFast, fFast === f.url ? mirrorUrl(f.url) : f.url].filter(Boolean), destPath, null, 5);
+        } catch(e){ logLine('error', '库文件下载失败：' + f.name + ' ' + f.rel + '（' + (e.message || e) + '）'); failed.push(f); }
+      }));
     }
     if (failed.length){
-      throw new Error(failed.length + ' 个依赖库下载失败（网络或文件问题），详见日志。已下载部分可重试续传');
+      throw new Error(failed.length + ' 个依赖库下载失败（网络或文件问题），详见日志。可切换 设置 → 下载源 或稍后重试（已下载部分可续传）');
     }
 
     // 写入版本描述（modloader 版本无主 jar，启动时经 resolveVersionMeta 继承原版 jar）
     const vDir = path.join(versionsDir(), versionId);
     fs.mkdirSync(vDir, { recursive: true });
     fs.writeFileSync(path.join(vDir, versionId + '.json'), JSON.stringify(jsonObj, null, 2));
-    logLine('info', type.toUpperCase() + ' 底层安装完成：' + versionId + '（' + total + ' 个库文件已就位，无需运行安装器）');
+
+    // 28：安装完成后立即补齐原版主程序（Forge/NeoForge 的 version.json 无 downloads.client，继承原版，
+    // 依次从 自身 json → 底层原版 json → BMCLAPI /version/{mc}/json 取 client），版本管理不再显示「缺主程序」，
+    // 底层原版目录一并补齐，启动即点即玩
+    try {
+      const baseId = jsonObj.inheritsFrom || versionId;
+      const mainJar = path.join(vDir, versionId + '.jar');
+      let dj = jsonObj.downloads && jsonObj.downloads.client;
+      if (!dj || !dj.url){
+        try {
+          const bm = JSON.parse(fs.readFileSync(path.join(versionsDir(), baseId, baseId + '.json'), 'utf8'));
+          dj = bm.downloads && bm.downloads.client;
+        } catch(e){}
+      }
+      if (!dj || !dj.url){
+        try {
+          const bmJson = await fetchJson('https://bmclapi2.bangbang93.com/version/' + baseId + '/json');
+          dj = bmJson && bmJson.downloads && bmJson.downloads.client;
+          if (dj && dj.url){
+            const baseDir = path.join(versionsDir(), baseId);
+            fs.mkdirSync(baseDir, { recursive: true });
+            fs.writeFileSync(path.join(baseDir, baseId + '.json'), JSON.stringify(bmJson, null, 2));
+          }
+        } catch(e){}
+      }
+      if (dj && dj.url && (!fs.existsSync(mainJar) || (fs.statSync(mainJar).size || 0) < 100000)){
+        send('installer:progress', { type, mc, loader: versionId, stage: 'mainjar', status: '正在补齐原版主程序…' });
+        const bmclUrl = 'https://bmclapi2.bangbang93.com/version/' + baseId + '/client';
+        const fast = await pickFastSource([bmclUrl, dj.url]);
+        await downloadWithRetry(fast, mainJar, null, p => {
+          send('installer:progress', { type, mc, loader: versionId, stage: 'mainjar', received: p.received, total: p.total });
+        }, 3, fast === dj.url ? bmclUrl : dj.url);
+        const baseJar = path.join(versionsDir(), baseId, baseId + '.jar');
+        if (!fs.existsSync(baseJar)){
+          fs.mkdirSync(path.dirname(baseJar), { recursive: true });
+          fs.copyFileSync(mainJar, baseJar);
+        }
+        logLine('info', versionId + ' 原版主程序已补齐');
+      }
+    } catch(me){ logLine('warn', versionId + ' 主程序补齐失败（启动时会再次尝试）：' + (me.message || me)); }
+
+    logLine('info', type.toUpperCase() + ' 底层安装完成：' + versionId + '（' + total + ' 个库文件已就位）');
+    // 28：Forge/NeoForge 客户端处理产物（client-srg.jar / client-extra.jar / forge-client.jar）
+    // 只能由官方安装器的 processors（jarsplitter→重命名→binarypatcher）生成。此前仅下载库+写 json，
+    // 启动时 ModJarMetadata 扫描即崩（Invalid paths argument, contained no existing paths）。
+    // 此处自动运行官方安装器（PCL 同款方式）补齐三个产物；Fabric/Quilt 无此步骤，跳过。
+    if (type === 'forge' || type === 'neoforge'){
+      try {
+        if (dest && fs.existsSync(dest)){
+          const pp = await runForgeInstaller({ installerPath: instJarPath, versionId, mc });
+          logLine('info', versionId + ' 处理产物已就位（srg/extra/client，由官方安装器生成）');
+          send('installer:progress', { type, mc, loader: versionId, stage: 'installer', status: '处理产物已生成（srg/extra/client）' });
+        }
+      } catch(ie){
+        logLine('error', versionId + ' 官方安装器生成处理产物失败：' + (ie.message || ie) + '（游戏将无法启动，请检查网络与 Java 后重试）');
+        send('installer:progress', { type, mc, loader: versionId, stage: 'installer', status: '失败：' + (ie.message || ie).slice(0, 120) });
+        throw ie;
+      }
+    }
     send('installer:progress', { type, mc, loader: versionId, stage: 'done' });
     return scanVersions();
   } catch(e){
@@ -2008,9 +2585,13 @@ function registerIpc(){
     }
   });
   ipcMain.handle('launch:stop', () => { stopGame(); return true; });
+  // 28：下载功能已全面恢复——版本清单与下载入口完全可用（BMCLAPI / Mojang 多源加速）
   ipcMain.handle('download:manifest', () => getManifest());
-  ipcMain.handle('download:versionStart', async (e, versionId) => {
-    try { await downloadVersion(versionId); return { ok: true }; }
+  ipcMain.handle('download:versionStart', async (e, versionId, opts) => {
+    try {
+      await downloadVersion(versionId);
+      return { ok: true };
+    }
     catch(err){
       if (err.message !== 'CANCELLED') logLine('error', '下载 ' + versionId + ' 失败：' + err.message);
       return { ok: false, error: err.message === 'CANCELLED' ? '任务已取消' : err.message };
@@ -2049,24 +2630,68 @@ function registerIpc(){
     const src = logFilePath();
     let content = '';
     try { content = fs.existsSync(src) ? fs.readFileSync(src, 'utf8') : ''; } catch(e){}
-    const r = await dialog.showSaveDialog(win, {
-      title: '导出启动日志',
-      defaultPath: path.join(app.getPath('downloads') || dataRoot(), 'AOURA-launcher.log'),
-      filters: [{ name: '日志文件', extensions: ['log', 'txt'] }]
-    });
-    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    let downloadsDir = dataRoot();
+    try { downloadsDir = app.getPath('downloads'); } catch(e){}
+    let r = null;
+    try {
+      r = await dialog.showSaveDialog(win, {
+        title: '导出启动日志',
+        defaultPath: path.join(downloadsDir, 'AOURA-launcher.log'),
+        filters: [{ name: '日志文件', extensions: ['log', 'txt'] }]
+      });
+    } catch(e){
+      // 对话框不可用（无桌面环境/权限等）：直接写入安装目录 logs，保证用户仍能拿到日志
+      const fb = path.join(dataRoot(), 'logs', 'AOURA-launcher-export.log');
+      try { fs.writeFileSync(fb, content, 'utf8'); return { ok: true, path: fb, note: '系统保存对话框不可用，已导出到安装目录 logs 下' }; }
+      catch(e2){ return { ok: false, error: '导出失败：' + String(e && e.message || e) }; }
+    }
+    if (r.canceled || !r.filePath){
+      // 用户取消对话框：也落一份到安装目录 logs，方便直接取用
+      const fb = path.join(dataRoot(), 'logs', 'AOURA-launcher-export.log');
+      try { fs.writeFileSync(fb, content, 'utf8'); return { ok: true, path: fb, note: '已同时导出到安装目录 logs 下' }; }
+      catch(e){ return { ok: false, canceled: true }; }
+    }
     try { fs.writeFileSync(r.filePath, content, 'utf8'); }
     catch(e){ return { ok: false, error: String(e && e.message || e) }; }
     return { ok: true, path: r.filePath };
   });
   ipcMain.handle('app:info', () => ({
-    version: '18.2',
+    version: '28.0.1',
     electron: process.versions.electron || '',
     chrome: process.versions.chrome || '',
     node: process.versions.node || '',
+    // 28：鸿蒙 PC 适配——上报运行平台，前端关于页据此展示系统支持状态
+    platform: process.platform,
+    osName: (function(){
+      if (process.platform === 'win32') return 'Windows';
+      if (process.platform === 'darwin') return 'macOS';
+      if (process.platform === 'linux'){
+        try {
+          const osrel = require('fs').readFileSync('/etc/os-release', 'utf8');
+          if (/HarmonyOS|OpenHarmony|ohos/i.test(osrel)) return 'HarmonyOS PC（鸿蒙 PC）';
+        } catch(e){}
+        return 'Linux';
+      }
+      return process.platform;
+    })(),
+    harmonyOs: (function(){
+      // HarmonyOS NEXT / OpenHarmony 特征探测
+      try {
+        if (process.platform !== 'linux') return false;
+        const osrel = require('fs').readFileSync('/etc/os-release', 'utf8');
+        return /HarmonyOS|OpenHarmony|ohos/i.test(osrel);
+      } catch(e){ return false; }
+    })(),
     dataDir: dataRoot(),
     gameDir: gameDir(),
     exeDir: path.dirname(app.getPath('exe'))
+  }));
+  // 28.0.1：沙箱定位修正——沙箱为鸿蒙 PC 端专属创新特性（鸿蒙无法直跑 Java 时自动建容器沙箱运行游戏）
+  // Windows 端原生直跑、无需沙箱。此处仅返回鸿蒙沙箱策略说明。
+  ipcMain.handle('sandbox:info', () => ({
+    ok: true,
+    windows: 'Windows 原生直跑，无需沙箱',
+    harmony: '鸿蒙 PC 专属沙箱：当系统无法直接运行 Java 游戏时，AOURA 自动创建容器沙箱（隔离 Java 运行时），游戏在沙箱内正常游玩'
   }));
   ipcMain.handle('ms:deviceCode', () => msDeviceCode());
   ipcMain.handle('ms:poll', async (e, d) => msPollToken(d && d.deviceCode, d && d.interval));
@@ -2088,6 +2713,22 @@ function registerIpc(){
     return { ok: true };
   });
   ipcMain.handle('download:cancel', () => { cancelDownload(); return true; });
+  /* 20.2：任务中心删除已下载文件（限游戏目录/版本目录内，防误删其他文件） */
+  ipcMain.handle('res:removeFile', (e, dir, name) => {
+    try {
+      if (!dir || !name) return { ok: false, error: '参数不完整' };
+      const d = path.resolve(String(dir));
+      const safe1 = path.resolve(gameDir());
+      const safe2 = path.resolve(versionsDir());
+      if (d.indexOf(safe1) !== 0 && d.indexOf(safe2) !== 0) return { ok: false, error: '路径不在游戏/版本目录内，已拒绝' };
+      if (/[\\/:*?"<>|]/.test(String(name))) return { ok: false, error: '非法文件名' };
+      const f = path.join(d, path.basename(String(name)));
+      if (!fs.existsSync(f)) return { ok: false, error: '文件不存在' };
+      fs.unlinkSync(f);
+      logLine('info', '任务中心已删除文件：' + f);
+      return { ok: true };
+    } catch(err){ return { ok: false, error: err.message }; }
+  });
   ipcMain.handle('modrinth:search', (e, q, type, version, loader) => modrinthSearch(q, type, 24, version, loader));
   ipcMain.handle('modrinth:project', (e, id) => modrinthProject(id));
   ipcMain.handle('modrinth:download', (e, id, type) => modrinthDownload(id, type));
@@ -2115,6 +2756,50 @@ function registerIpc(){
       return { ok: false, msg: e.message };
     }
   });
+  /* 20.1：OptiFine 一键安装（BMCLAPI /optifine API，实测可用；要求对应原版已安装） */
+  ipcMain.handle('optifine:list', async (e, mc) => {
+    try {
+      const arr = await retryJson('https://bmclapi2.bangbang93.com/optifine/' + encodeURIComponent(mc), 3);
+      if (!Array.isArray(arr)) throw new Error('未获取到 OptiFine 版本列表');
+      return { ok: true, list: arr.map(x => ({ filename: x.filename, type: x.type, patch: x.patch, forge: x.forge || '' })).slice(0, 60) };
+    } catch(err){ return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('optifine:install', async (e, mc, type, patch) => {
+    try {
+      mc = String(mc || '').trim(); type = String(type || '').trim(); patch = String(patch || '').trim();
+      if (!mc || !type || !patch) return { ok: false, error: '参数不完整' };
+      const base = path.join(versionsDir(), mc);
+      if (!fs.existsSync(base) || !fs.existsSync(path.join(base, mc + '.json'))){
+        return { ok: false, error: '请先下载并安装原版 ' + mc + '，再安装 OptiFine（OptiFine 基于原版运行）' };
+      }
+      const tag = type + '_' + patch;
+      const vid = 'OptiFine_' + mc + '_' + tag;
+      const vdir = path.join(versionsDir(), vid);
+      if (fs.existsSync(path.join(vdir, vid + '.json'))) return { ok: false, error: '已安装过该版本：' + vid };
+      fs.mkdirSync(vdir, { recursive: true });
+      const libPath = 'optifine/OptiFine/' + mc + '_' + tag + '/OptiFine-' + mc + '_' + tag + '.jar';
+      const jarDest = path.join(vdir, libPath);
+      fs.mkdirSync(path.dirname(jarDest), { recursive: true });
+      const dl = 'https://bmclapi2.bangbang93.com/optifine/' + encodeURIComponent(mc) + '/' + encodeURIComponent(type) + '/' + encodeURIComponent(patch);
+      await downloadWithRetry(dl, jarDest, null, null, 3);
+      const json = {
+        id: vid,
+        inheritsFrom: mc,
+        time: new Date().toISOString(),
+        releaseTime: new Date().toISOString(),
+        type: 'release',
+        mainClass: 'optifine.OptiFineTweaker',
+        minecraftArguments: '--tweakClass optifine.OptiFineTweaker',
+        libraries: [
+          { name: 'net.minecraft:launchwrapper:1.12', url: 'https://libraries.minecraft.net/' },
+          { name: 'optifine:OptiFine:' + mc + '_' + tag, url: 'file:///' + vdir.replace(/\\/g, '/') + '/' }
+        ]
+      };
+      fs.writeFileSync(path.join(vdir, vid + '.json'), JSON.stringify(json, null, 2));
+      logLine('info', 'OptiFine 安装完成：' + vid);
+      return { ok: true, name: vid };
+    } catch(err){ return { ok: false, error: err.message }; }
+  });
   ipcMain.handle('loader:forgePromos', () => forgePromos());
   ipcMain.handle('loader:forgeVersions', (e, mc) => forgeVersionsFor(mc));
   ipcMain.handle('loader:neoforgeVersions', (e, mc) => neoforgeVersions(mc));
@@ -2135,6 +2820,56 @@ function registerIpc(){
   /* 版本操作 */
   ipcMain.handle('versions:delete', (e, id) => deleteVersion(id));
   ipcMain.handle('versions:duplicate', (e, id, newId) => duplicateVersion(id, newId));
+  /* 28：版本主程序补齐（旧安装的加载器版本缺主 jar 时一键补下，BMCLAPI 同款源） */
+  ipcMain.handle('versions:repairMain', async (e, versionId) => {
+    try {
+      const vDir = path.join(versionsDir(), versionId);
+      const jf = path.join(vDir, versionId + '.json');
+      if (!fs.existsSync(jf)) return { ok: false, msg: '版本不存在：' + versionId };
+      const meta = JSON.parse(fs.readFileSync(jf, 'utf8'));
+      const dj = meta.downloads && meta.downloads.client;
+      if (!dj || !dj.url) return { ok: false, msg: '该版本缺少主程序下载信息' };
+      const baseId = meta.inheritsFrom || versionId;
+      const mainJar = path.join(vDir, versionId + '.jar');
+      fs.mkdirSync(vDir, { recursive: true });
+      const bmclUrl = 'https://bmclapi2.bangbang93.com/version/' + baseId + '/client';
+      const fast = await pickFastSource([bmclUrl, dj.url]);
+      await downloadWithRetry(fast, mainJar, null, null, 3, fast === dj.url ? bmclUrl : dj.url);
+      const baseJar = path.join(versionsDir(), baseId, baseId + '.jar');
+      if (!fs.existsSync(baseJar)){
+        fs.mkdirSync(path.dirname(baseJar), { recursive: true });
+        fs.copyFileSync(mainJar, baseJar);
+      }
+      logLine('info', versionId + ' 主程序已补齐（' + Math.round(fs.statSync(mainJar).size / 1048576 * 10) / 10 + ' MB）');
+      // 28：Forge/NeoForge 版本同时补齐 3 个处理产物（srg/extra/client）——重新拉取安装器运行
+      const isForge = versionId.includes('-forge-') || versionId.includes('-neoforge-');
+      if (isForge){
+        try {
+          const isNeo = versionId.includes('-neoforge-');
+          const g = isNeo ? 'net/neoforged/neoforge' : 'net/minecraftforge/forge';
+          // 28：installer 路径段 = {mc}-{ver}（如 1.20.1-47.3.39），不是 versionId（1.20.1-forge-47.3.39）
+          const vtag = versionId.replace(isNeo ? '-neoforge-' : '-forge-', '-');
+          const tmpI = path.join(cacheDir(), 'repair-' + Date.now().toString(36) + (isNeo ? '-neo' : '-forge') + '-installer.jar');
+          fs.mkdirSync(path.dirname(tmpI), { recursive: true });
+          const u1 = 'https://bmclapi2.bangbang93.com/maven/' + g + '/' + vtag + '/' + (isNeo ? 'neoforge-' : 'forge-') + vtag + '-installer.jar';
+          const u2 = isNeo
+            ? 'https://maven.neoforged.net/releases/' + g + '/' + vtag + '/' + (isNeo ? 'neoforge-' : 'forge-') + vtag + '-installer.jar'
+            : 'https://maven.minecraftforge.net/net/minecraftforge/forge/' + vtag + '/forge-' + vtag + '-installer.jar';
+          const f = await pickFastSource([u1, u2], 8000);
+          await multiSourceDownload([f, f === u2 ? u1 : u2].filter(Boolean), tmpI, null, 3);
+          const baseId = meta.inheritsFrom || versionId;
+          await runForgeInstaller({ installerPath: tmpI, versionId, mc: baseId });
+          logLine('info', versionId + ' 处理产物已补齐（srg/extra/client）');
+        } catch(ie){
+          logLine('warn', versionId + ' 处理产物补齐失败（下次重装底层可自动补齐）：' + (ie.message || ie));
+        }
+      }
+      return { ok: true, versions: scanVersions() };
+    } catch(err){
+      logLine('error', versionId + ' 主程序补齐失败：' + (err.message || err));
+      return { ok: false, msg: (err.message || err) + '（可稍后重试或切换下载源）' };
+    }
+  });
   /* 头像 */
   ipcMain.handle('avatar:default', () => {
     try {
@@ -2221,6 +2956,8 @@ function registerIpc(){
     const tmp = path.join(cacheDir(), 'save-' + Date.now().toString(36));
     fs.mkdirSync(tmp, { recursive: true });
     try {
+      const saveName = path.basename(src);
+      send('save:importProgress', { name: saveName, pct: 5, status: '解压存档压缩包…', path: savesDir });
       await extractZip(src, tmp);
       // 层级识别：找到所有含 level.dat 的世界目录
       const worlds = [];
@@ -2234,9 +2971,11 @@ function registerIpc(){
       };
       walk(tmp, '');
       if (!worlds.length){
+        send('save:importProgress', { name: saveName, pct: 100, status: '压缩包内未找到世界存档（缺少 level.dat）', ok: false, path: savesDir });
         fs.rmSync(tmp, { recursive: true, force: true });
         return { ok: false, msg: '压缩包内未找到世界存档（缺少 level.dat）' };
       }
+      send('save:importProgress', { name: saveName, pct: 55, status: '识别到 ' + worlds.length + ' 个世界，开始归置…', path: savesDir });
       let count = 0;
       for (const w of worlds){
         const baseName = path.basename(w.dir);
@@ -2244,32 +2983,27 @@ function registerIpc(){
         while (fs.existsSync(target)){ target = path.join(savesDir, baseName + '_' + n); n++; }
         fs.renameSync(w.dir, target);
         count++;
+        send('save:importProgress', { name: saveName, pct: 55 + Math.round(count / worlds.length * 40), status: '归置存档 ' + count + '/' + worlds.length, path: savesDir });
       }
       fs.rmSync(tmp, { recursive: true, force: true });
+      send('save:importProgress', { name: saveName, pct: 100, status: '导入完成：' + count + ' 个世界存档', ok: true, path: savesDir });
       return { ok: true, name: count + ' 个世界存档', count };
     } catch (err) {
+      try { send('save:importProgress', { name: path.basename(src), pct: 100, status: '导入失败：' + (err.message || err), ok: false }); } catch(e){}
       try { fs.rmSync(tmp, { recursive: true, force: true }); } catch(e){}
       return { ok: false, msg: '导入失败：' + (err.message || err) };
     }
   });
-  ipcMain.handle('mgr:import', async () => {
-    const r = await dialog.showOpenDialog(win, {
-      properties: ['openFile'],
-      title: '导入整合包（zip / mrpack）',
-      filters: [{ name: '整合包', extensions: ['zip', 'mrpack'] }]
-    });
-    if (r.canceled || !r.filePaths.length) return { ok: false, msg: '已取消' };
-    const src = r.filePaths[0];
-    const base = path.basename(src).replace(/\.(zip|mrpack)$/i, '');
-    const target = path.join(versionsDir(), base);
-    if (fs.existsSync(target)) return { ok: false, msg: '已存在同名版本目录：' + base + '，请重命名后重试' };
-    fs.mkdirSync(target, { recursive: true });
-    try {
-      await extractZip(src, target);
-    } catch (err) {
-      fs.rmSync(target, { recursive: true, force: true });
-      return { ok: false, msg: '解压失败：' + err.message };
-    }
+async function importPackFromFile(src, onProgress){
+  const base = path.basename(src).replace(/\.(zip|mrpack)$/i, '');
+  const target = path.join(versionsDir(), base);
+  const step = (pct, status) => { try { if (onProgress) onProgress({ pct, status }); } catch(e){} };
+  if (fs.existsSync(target)) return { ok: false, msg: '已存在同名版本目录：' + base + '，请重命名后重试' };
+  fs.mkdirSync(target, { recursive: true });
+  try {
+    step(8, '解压整合包…');
+    await extractZip(src, target);
+    step(30, '解析整合包…');
     const json = path.join(target, 'version.json');
     if (!fs.existsSync(json)){
       // CurseForge 包：version.json 常在 minecraft/ 子目录，搬移上来
@@ -2280,7 +3014,88 @@ function registerIpc(){
       }
     }
     if (fs.existsSync(json)){
+      // 20.7：version.json 存在但仅含官方版本元数据（无 mods/overrides）时，直接归置同结构文件
+      step(100, '导入完成');
       return { ok: true, name: base, needLoader: false };
+    }
+    // CurseForge 整合包：解析 manifest.json（根目录 mods/*.jar + overrides/），自动安装模组加载器
+    const cfManifest = path.join(target, 'manifest.json');
+    if (fs.existsSync(cfManifest)){
+      try {
+        const idx = JSON.parse(fs.readFileSync(cfManifest, 'utf8'));
+        const mc = (idx.minecraft && idx.minecraft.version) || '';
+        const mls = (idx.minecraft && idx.minecraft.modLoaders) || [];
+        const ml = (mls.find && mls.find(m => m && m.primary)) || mls[0] || null;
+        let loaderType = '', loaderId = '';
+        if (ml && ml.id){
+          const m = String(ml.id).match(/^(forge|fabric|neoforge|quilt)-?(.*)$/i);
+          if (m){ loaderType = m[1].toLowerCase(); loaderId = m[2] || ''; }
+        }
+        if (!mc){ fs.rmSync(target, { recursive: true, force: true }); return { ok: false, msg: '整合包未声明 Minecraft 版本' }; }
+        const overTmp = path.join(target, idx.overrides || 'overrides');
+        // CF 包 mods 位于包根目录 mods/
+        const modsTmp = path.join(target, 'mods');
+        if (loaderType){
+          step(35, '正在自动安装模组加载器（' + loaderType + '）…');
+          let loadErr = null;
+          let vid = '';
+          try {
+            const after = await installLoader({ type: loaderType, mc, loader: loaderId });
+            // 28：加载器版本已写入即视为安装成功（installed 表示主程序已补齐；即便未补齐也可启动时自动补）
+            const hit = (after || []).find(v => v.installed && v.id.includes(mc)) || (after || []).find(v => v.id.includes(mc));
+            vid = hit ? hit.id : '';
+            if (!vid) loadErr = new Error('加载器安装未返回版本');
+          } catch(le){
+            loadErr = le;
+            logLine('error', '[' + loaderType + ' 加载器安装失败] ' + (le && le.message ? le.message : String(le)));
+          }
+          if (loadErr){
+            fs.rmSync(target, { recursive: true, force: true });
+            return { ok: false, msg: '自动安装 ' + loaderType + ' 加载器失败：' + (loadErr.message || loadErr) + '（详见日志，可切换下载源后重试）' };
+          }
+          step(80, '归置模组与文件…');
+          const modsDest = mgrBase('mods', vid);
+          fs.mkdirSync(modsDest, { recursive: true });
+          if (fs.existsSync(modsTmp)){
+            for (const f of fs.readdirSync(modsTmp)){
+              const s0 = path.join(modsTmp, f);
+              if (fs.statSync(s0).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(s0, path.join(modsDest, f));
+            }
+          }
+          const gd = cfg.isolation ? path.join(versionsDir(), vid) : gameDir();
+          if (fs.existsSync(overTmp)) copyTree(overTmp, gd);
+          fs.rmSync(target, { recursive: true, force: true });
+          step(100, '导入完成');
+          return { ok: true, name: vid, needLoader: true };
+        }
+        step(80, '归置模组与文件…');
+        const modsDest = mgrBase('mods', mc);
+        fs.mkdirSync(modsDest, { recursive: true });
+        if (fs.existsSync(modsTmp)){
+          for (const f of fs.readdirSync(modsTmp)){
+            const s0 = path.join(modsTmp, f);
+            if (fs.statSync(s0).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(s0, path.join(modsDest, f));
+          }
+        }
+        const gd = cfg.isolation ? path.join(versionsDir(), mc) : gameDir();
+        if (fs.existsSync(overTmp)) copyTree(overTmp, gd);
+        fs.rmSync(target, { recursive: true, force: true });
+        step(100, '导入完成');
+        return { ok: true, name: mc + '（CurseForge 整合包）', needLoader: false };
+      } catch (err) {
+        try { fs.rmSync(target, { recursive: true, force: true }); } catch(e){}
+        return { ok: false, msg: 'CurseForge 整合包解析失败：' + (err.message || err) };
+      }
+    }
+    // 纯 zip 结构：整个 .minecraft 目录被打包（含 mods/saves/config/options.txt 等）
+    const mcDir = path.join(target, '.minecraft');
+    if (fs.existsSync(mcDir)){
+      const gd = cfg.isolation && cfg.currentVersion ? path.join(versionsDir(), cfg.currentVersion) : gameDir();
+      fs.mkdirSync(gd, { recursive: true });
+      copyTree(mcDir, gd);
+      fs.rmSync(target, { recursive: true, force: true });
+      step(100, '导入完成');
+      return { ok: true, name: base + '（.minecraft 结构包）', needLoader: false };
     }
     // Modrinth mrpack：解析 modrinth.index.json，自动安装模组加载器并归置 mods/overrides，确保可直接启动
     const indexFile = path.join(target, 'modrinth.index.json');
@@ -2293,45 +3108,80 @@ function registerIpc(){
         const forge = deps['forge'] || '';
         const neo = deps['neoforge'] || '';
         if (!mc){ fs.rmSync(target, { recursive: true, force: true }); return { ok: false, msg: '整合包未声明 Minecraft 版本' }; }
-        let loaderId = '';
         let loaderType = '';
+        let loaderId = '';
         if (fabric){ loaderType = 'fabric'; loaderId = fabric; }
         else if (forge){ loaderType = 'forge'; loaderId = forge; }
         else if (neo){ loaderType = 'neoforge'; loaderId = neo; }
         // 解包 mods/ 到临时，再交给加载器版本目录
         const modsTmp = path.join(target, 'mods');
         const overTmp = path.join(target, 'overrides');
+        // 20.0：下载 modrinth.index.json 声明但未打包的依赖文件（files 数组，多源+重试），
+        // 避免整合包导入后缺少模组导致无法使用（参考主流启动器的依赖补全做法）
+        const packFiles = (idx.files || []).filter(f => f && f.path && f.downloads && f.downloads.length);
+        let packDepDone = 0, packDepFailed = 0;
+        for (const pf of packFiles){
+          step(48 + Math.round(packDepDone / Math.max(packFiles.length, 1) * 32), '下载整合包依赖：' + path.basename(pf.path));
+          const pDest = path.join(target, pf.path.replace(/^\/+/, ''));
+          try {
+            fs.mkdirSync(path.dirname(pDest), { recursive: true });
+            await multiSourceDownload(pf.downloads.slice(0, 3), pDest, null, 3);
+            packDepDone++;
+          } catch(e){
+            packDepFailed++;
+            logLine('warn', '整合包依赖下载失败（不影响主包导入）：' + pf.path + ' ' + (e.message || e));
+          }
+        }
+        if (packDepFailed) logLine('warn', '整合包有 ' + packDepFailed + ' 个依赖文件下载失败，已跳过（可在资源中心手动补装）');
         if (loaderType){
-          const after = await installLoader({ type: loaderType, mc, loader: loaderId });
-          const vid = (after && after.length && after.find(v => v.installed)) ? after[0].id : '';
-          if (!vid){ fs.rmSync(target, { recursive: true, force: true }); return { ok: false, msg: '自动安装 ' + loaderType + ' 加载器失败，请稍后重试' }; }
+          step(35, '正在自动安装模组加载器（' + loaderType + '）…');
+          let loadErr = null;
+          let vid = '';
+          try {
+            const after = await installLoader({ type: loaderType, mc, loader: loaderId });
+            // 28：加载器版本已写入即视为安装成功（installed 表示主程序已补齐；即便未补齐也可启动时自动补）
+            const hit = (after || []).find(v => v.installed && v.id.includes(mc)) || (after || []).find(v => v.id.includes(mc));
+            vid = hit ? hit.id : '';
+            if (!vid) loadErr = new Error('加载器安装未返回版本');
+          } catch(le){
+            loadErr = le;
+            logLine('error', '[' + loaderType + ' 加载器安装失败] ' + (le && le.message ? le.message : String(le)));
+          }
+          if (loadErr){
+            fs.rmSync(target, { recursive: true, force: true });
+            return { ok: false, msg: '自动安装 ' + loaderType + ' 加载器失败：' + (loadErr.message || loadErr) + '（详见日志，可切换下载源后重试）' };
+          }
+          step(80, '归置模组与文件…');
           // 模组 → 加载器版本的隔离 mods 目录（未隔离则共享 mods）
           const modsDest = mgrBase('mods', vid);
           fs.mkdirSync(modsDest, { recursive: true });
           if (fs.existsSync(modsTmp)){
             for (const f of fs.readdirSync(modsTmp)){
-              const src = path.join(modsTmp, f);
-              if (fs.statSync(src).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(src, path.join(modsDest, f));
+              const s0 = path.join(modsTmp, f);
+              if (fs.statSync(s0).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(s0, path.join(modsDest, f));
             }
           }
           // overrides → 游戏目录（资源包/配置/存档等）
           const gd = cfg.isolation ? path.join(versionsDir(), vid) : gameDir();
           if (fs.existsSync(overTmp)) copyTree(overTmp, gd);
           fs.rmSync(target, { recursive: true, force: true });
+          step(100, '导入完成');
           return { ok: true, name: vid, needLoader: true };
         }
         // 纯原版整合包：mods 归置共享目录，overrides 合并
+        step(80, '归置模组与文件…');
         const modsDest = mgrBase('mods', mc);
         fs.mkdirSync(modsDest, { recursive: true });
         if (fs.existsSync(modsTmp)){
           for (const f of fs.readdirSync(modsTmp)){
-            const src = path.join(modsTmp, f);
-            if (fs.statSync(src).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(src, path.join(modsDest, f));
+            const s0 = path.join(modsTmp, f);
+            if (fs.statSync(s0).isFile() && /\.jar$/i.test(f)) fs.copyFileSync(s0, path.join(modsDest, f));
           }
         }
         const gd = cfg.isolation ? path.join(versionsDir(), mc) : gameDir();
         if (fs.existsSync(overTmp)) copyTree(overTmp, gd);
         fs.rmSync(target, { recursive: true, force: true });
+        step(100, '导入完成');
         return { ok: true, name: mc + '（纯原版整合包）', needLoader: false };
       } catch (err) {
         try { fs.rmSync(target, { recursive: true, force: true }); } catch(e){}
@@ -2340,7 +3190,60 @@ function registerIpc(){
     }
     fs.rmSync(target, { recursive: true, force: true });
     return { ok: false, msg: '该压缩包未找到 version.json 或 modrinth.index.json，不是可识别的整合包' };
+  } catch (err) {
+    try { fs.rmSync(target, { recursive: true, force: true }); } catch(e){}
+    return { ok: false, msg: '整合包导入失败：' + (err.message || err) };
+  }
+}
+
+ipcMain.handle('versions:rename', async (e, oldId, newId) => {
+    oldId = String(oldId || '').trim(); newId = String(newId || '').trim();
+    if (!oldId || !newId) return { ok: false, msg: '版本名不能为空' };
+    if (oldId === newId) return { ok: true, name: newId };
+    if (/[\\/:*?"<>|]/.test(newId)) return { ok: false, msg: '名称不能包含字符 \\ / : * ? " < > |' };
+    if (launchProc) return { ok: false, msg: '有游戏正在运行，请先退出游戏再重命名' };
+    if (dlToken) return { ok: false, msg: '有下载任务进行中，请等待完成或取消后再重命名' };
+    const src = path.join(versionsDir(), oldId);
+    const dst = path.join(versionsDir(), newId);
+    if (!fs.existsSync(src)) return { ok: false, msg: '版本目录不存在：' + oldId };
+    if (fs.existsSync(dst)) return { ok: false, msg: '已存在同名版本：' + newId };
+    try {
+      // 目录 + json + jar 一并改名；版本元数据 id 保持官方原值（不影响继承链）
+      fs.renameSync(src, dst);
+      const jOld = path.join(dst, oldId + '.json'), jNew = path.join(dst, newId + '.json');
+      if (fs.existsSync(jOld)) fs.renameSync(jOld, jNew);
+      const jarOld = path.join(dst, oldId + '.jar'), jarNew = path.join(dst, newId + '.jar');
+      if (fs.existsSync(jarOld)) fs.renameSync(jarOld, jarNew);
+      // 当前选中版本同步
+      if (cfg.currentVersion === oldId){
+        cfg.currentVersion = newId;
+        try { saveConfig(); } catch(e){}
+      }
+      logLine('info', '版本重命名：' + oldId + ' → ' + newId);
+      return { ok: true, name: newId };
+    } catch(err){
+      return { ok: false, msg: '重命名失败：' + (err.message || err) };
+    }
   });
+ipcMain.handle('mgr:import', async () => {
+  const r = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    title: '导入整合包（zip / mrpack / CurseForge）',
+    filters: [{ name: '整合包', extensions: ['zip', 'mrpack'] }]
+  });
+  if (r.canceled || !r.filePaths.length) return { ok: false, msg: '已取消' };
+  const src = r.filePaths[0];
+  const pkName = path.basename(src).replace(/\.(zip|mrpack)$/i, '');
+  const res = await importPackFromFile(src, prog => {
+    send('pack:importProgress', { name: pkName, pct: prog.pct, status: prog.status, path: path.join(gameDir(), 'modpacks') });
+  });
+  if (res && res.ok){
+    send('pack:importProgress', { name: pkName, pct: 100, status: '导入完成：' + (res.name || pkName), ok: true, path: path.join(gameDir(), 'modpacks') });
+  } else {
+    send('pack:importProgress', { name: pkName, pct: 100, status: (res && res.msg) || '导入失败', ok: false, path: path.join(gameDir(), 'modpacks') });
+  }
+  return res;
+});
   ipcMain.handle('shell:openPath', (e, p) => {
     if (!p) return true;
     // URL 用系统浏览器打开；本地路径用资源管理器打开
