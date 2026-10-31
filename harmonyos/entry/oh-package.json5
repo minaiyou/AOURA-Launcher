@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "28.1.0",
+  "description": "AOURA 启动器入口模块",
+  "main": "",
+  "author": "珉爱制作",
+  "license": "MIT",
+  "dependencies": {}
+}
