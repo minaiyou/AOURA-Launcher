@@ -1,0 +1,12 @@
+{
+  "name": "aoura-launcher",
+  "version": "28.1.0",
+  "description": "AOURA 启动器（鸿蒙 PC 适配版）· 由珉爱制作",
+  "main": "",
+  "author": "珉爱制作",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.19"
+  }
+}
