@@ -1,0 +1,10 @@
+{
+  "app": {
+    "bundleName": "com.minaiyou.aoura",
+    "vendor": "minaiyou",
+    "versionCode": 28100,
+    "versionName": "28.1.0",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name"
+  }
+}
