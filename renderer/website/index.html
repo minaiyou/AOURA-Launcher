@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AOURA 启动器 · 官方网站 · 由珉爱制作</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='64' y2='64'%3E%3Cstop offset='0' stop-color='%234de3ff'/%3E%3Cstop offset='1' stop-color='%23a78bff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23081426'/%3E%3Cpath d='M14 44 32 18l18 26z' stroke='url(%23g)' stroke-width='5' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='32' cy='37' r='5.5' fill='%237df3ff'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='64' y2='64'%3E%3Cstop offset='0' stop-color='%2369a8d0'/%3E%3Cstop offset='1' stop-color='%232c4a78'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%23081426'/%3E%3Cpath d='M14 44 32 18l18 26z' stroke='url(%23g)' stroke-width='5' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='32' cy='37' r='5' fill='%234a7fb0'/%3E%3C/svg%3E">
 <style>
 :root{
   --bg-0:#03060c; --bg-1:#081020; --bg-2:#0c1730;
@@ -53,6 +53,9 @@ a{color:var(--cyan);text-decoration:none}
 .nav-links a:hover{color:var(--txt);background:rgba(77,227,255,.08)}
 .nav-links a.on{color:var(--txt);background:rgba(77,227,255,.12);box-shadow:inset 0 0 0 1px rgba(77,227,255,.25)}
 .nav-cta{margin-left:auto}
+.nav-gh{margin-right:10px;border:1px solid var(--line-2);background:rgba(255,255,255,.04);color:var(--txt-2);padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:all .25s}
+.nav-gh svg{width:15px;height:15px;fill:currentColor}
+.nav-gh:hover{border-color:var(--cyan);color:var(--cyan);transform:translateY(-1px)}
 main{position:relative;z-index:3}
 .page{display:none;padding:104px 0 80px;min-height:100vh;animation:pgIn .5s var(--ease)}
 .page.on{display:block}
@@ -219,6 +222,10 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <a href="#download" data-p="download">下载</a>
       <a href="#about" data-p="about">关于</a>
     </div>
+    <a class="btn btn-ghost nav-gh" href="https://github.com/minaiyou/AOURA-Launcher" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 2.9.8.1-.6.4-1.1.7-1.3-2.2-.3-4.6-1.1-4.6-4.9 0-1.1.4-2 1-2.7-.1-.2-.4-1.2.1-2.6 0 0 .8-.3 2.7 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.6.6.7 1 1.6 1 2.7 0 3.8-2.4 4.6-4.6 4.9.4.3.7.9.7 1.9v2.9c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z"/></svg>
+      GitHub
+    </a>
     <a class="btn btn-glow nav-cta" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
       立即下载
@@ -237,7 +244,7 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
         <div class="ring r2"></div>
         <svg viewBox="0 0 64 64" fill="none">
           <path d="M14 44 32 18l18 26z" stroke="url(#lg)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-          <circle cx="32" cy="37" r="5.5" fill="#7df3ff"/>
+          <circle cx="32" cy="37" r="5" fill="#4a7fb0"/>
         </svg>
       </div>
       <h1>AOURA 启动器</h1>
@@ -251,7 +258,7 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
         <a class="btn" href="#features"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m5 12 7-7 7 7"/></svg>了解特性</a>
       </div>
       <div class="hero-ver">
-        <span class="hv"><i class="dot"></i>最新版本 <b>18.2</b></span>
+        <span class="hv"><i class="dot"></i>最新版本 <b>28.0.1</b></span>
         <span class="hv">Windows 已支持</span>
         <span class="hv">macOS · 鸿蒙 OS 开发中</span>
       </div>
@@ -394,7 +401,7 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <div class="sub">安装包随版本持续更新，下载页由作者统一维护，始终指向最新版本。</div>
     </div>
     <div class="glass dl-box">
-      <div class="big">AOURA 启动器 <em style="font-style:normal;color:var(--cyan)">v18.2</em></div>
+      <div class="big">AOURA 启动器 <em style="font-style:normal;color:var(--cyan)">v26.7</em></div>
       <div class="ver-note">Windows 安装包 · 约 92 MB · 沉浸光效版 · 内置陶瓦联机引擎</div>
       <a class="btn btn-glow" href="https://docs.qq.com/aio/DUENmdFVWVmZrWGF3" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24"><path d="M12 3.5v12"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M5 20.5h14"/></svg>
@@ -413,7 +420,33 @@ footer{margin-top:70px;padding:30px 0 50px;border-top:1px solid rgba(125,190,255
       <div class="sub">每一次更新，都是一次光效与体验的进化。</div>
     </div>
     <div class="timeline">
-      <div class="tl-row"><div class="tl-ver">18.2<small>当前</small></div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>游戏语言支持</b><p>修复安装模组底层（Forge/Fabric/NeoForge）后游戏变为英文的问题：新增「游戏语言」设置（默认简体中文），启动前自动写入游戏语言配置；中文语言文件随资源自动补齐，无需额外下载任何底层，所有版本与模组底层均完整支持中文。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">28.0.1<small>当前</small></div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>拥抱世界 · 沙箱定位修正</b><p>沙箱改为鸿蒙端专属创新特性：鸿蒙 PC 无法直跑 Java 时自动创建容器沙箱运行游戏；Windows 端原生直跑，无需沙箱。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">28.0α</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>拥抱世界 · 架构探索与回归</b><p>为探索鸿蒙 PC 跨平台方案，团队以 Rust 构建了核心引擎原型（版本清单 / 多线程下载 / Java 检测 / 启动参数 / 沙箱策略）并在 Windows 原生交叉编译验证通过；经实测评估后，正式版回归成熟稳定的 HTML/Electron 架构，保留鸿蒙 PC 适配与专属沙箱设计，功能与体验优先。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">28.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>鸿蒙 PC 适配版 · 沙箱运行游戏</b><p>全新推出鸿蒙 PC 适配版（HarmonyOS NEXT · ArkTS / ArkUI 重构界面层，DevEco Studio 可直接编译，沉浸光感设计语言与 Windows 版一致）；同时 Windows 版新增「沙箱运行游戏」：一键生成 Windows 沙箱配置（.wsb），启动器与游戏在隔离环境中运行，保护宿主机；版本号 28.1。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">28</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载功能全面恢复 · 鸿蒙 PC 适配启动</b><p>下载功能全面恢复：版本清单与下载入口完全可用（BMCLAPI / Mojang 多源加速），移除合规关停弹窗与设置页「暂时打开」限制。同时启动鸿蒙 PC 适配：关于页展示当前运行平台与 HarmonyOS NEXT 适配状态，技术架构新增「鸿蒙 PC 适配」条目（ArkTS / ArkUI 重构界面层，下载与启动引擎逻辑跨平台复用），鸿蒙 OS 卡片标注适配中。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">26.7.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载功能合规调整</b><p>为遵守相关法律法规，AOURA 不再提供下载功能，恢复时间待定：下载中心展示合规说明弹窗与关闭状态，功能底层保留；设置页新增「下载功能（合规）」说明与「暂时打开」按钮，打开后仅可下载一次，下载完成后自动再次关闭，再次使用需重新打开。模组与资源下载不受影响。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">26.7</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>按中国法律要求关停游戏版本下载</b><p>根据中国法律合规要求，AOURA 已全面关停「下载游戏版本」功能：下载中心不再提供任何游戏版本下载，启动时强制弹窗告知。模组与资源下载功能不受影响，可正常使用；已下载的游戏版本仍可正常启动游玩。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.6.13</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>整合包导入再修复 · 中文兜底 · 图标修复</b><p>修复其他底层（Fabric / Quilt / NeoForge）整合包导入失败：加载器版本列表请求全部加重试，网络瞬断不再导致整包导入失败；修复 Fabric / Quilt 底层游戏显示英文：官方语言文件下载失败时自动改用随安装包分发的内置中文语言文件兜底，保证主界面中文；修复启动器图标缺失：应用图标补齐 16 / 24 / 32 / 48 / 64 / 128 / 256 全部尺寸，任务栏、桌面与文件资源管理器不再空白。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.6.12</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>整合包导入修复 · 导入进度条</b><p>修复整合包导入失败：整合包声明的 Forge 小版本若已被官方撤下（installer 404），自动从镜像版本列表回退到最近可用版本并写日志，不再整包导入失败；手动导入整合包与导入存档（zip）新增实时进度条（解压 / 识别 / 归置分阶段推进），同步显示在导入浮层与任务中心，成功 / 失败必达。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.6.11</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>模组版本选择修复 · 游戏目录自包含</b><p>已安装模组的游戏版本下拉修复深色主题下白底浅字看不清的问题（改为液态玻璃深色下拉并配下拉箭头）；版本选择与版本管理、主页一致，不再展示随加载器自动创建的底层依赖原版，一个模组底层对应一个版本；启动时自动把原版主程序复制进模组底层版本目录，原版游戏依赖与模组底层同处一个文件夹，彻底避免误删底层导致「缺少主程序」。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.6.10</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>整合包导入兼容扩展</b><p>整合包导入新增 CurseForge 整合包支持（解析 manifest.json，自动识别 Minecraft 版本与 Forge / Fabric / NeoForge / Quilt 加载器并自动安装，mods 与 overrides 自动归置）；同时支持整个 .minecraft 目录打包的 zip 结构包；版本管理导入入口文案同步更新。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.6</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>模组详情筛选器</b><p>资源中心模组详情页的「支持的加载器（底层）」与「支持的游戏版本」升级为可点击筛选器：点亮表示选中，可组合多选，版本列表实时过滤并显示命中数量，支持一键清除筛选。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.5</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>修复模组底层安装失败</b><p>定位并修复 Forge 底层安装失败：Forge 官方 promotions 接口当前不可达，且 BMCLAPI 的 promotions_slim 接口已下线（404）。已切换为 BMCLAPI 版本列表接口（实测可用），加载器依赖库下载升级为 12 路并发并补两轮反序重试，大幅提升安装成功率。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.4</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>版本隔离默认开启 · 资源下载跟随版本</b><p>版本隔离默认开启：每个版本的存档、模组、光影、资源包独立存放；模组/光影/资源包下载目录自动跟随当前选择的版本，与游戏实际读取位置一致。语言问题再加 JVM locale 参数兜底（针对 Minecraft 26.x 语言回退英文缺陷），三层保障中文显示。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.3</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>中文语言兜底与前置模组跳转</b><p>修复加入模组底层后游戏仍显示英文的问题：启动前显式确保中文语言文件（zh_cn.json）存在并补齐，语言写入与文件双保险；资源中心模组详情新增「需要的前置模组」区块，一键跳转前置模组下载页。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.2</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>任务中心与底层依赖整合</b><p>下载任务升级为任务中心：进度条与悬浮窗完全一致，支持删除任务（进行中取消并清理临时文件，已完成删除本次下载的版本或文件）；版本管理把模组底层依赖整合进主版本下拉展示，不再重复列出；主页快捷切换版本同样合并显示；修复模组底层安装后游戏语言变英文的问题。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>OptiFine 一键安装与 Quilt 支持</b><p>光影管理面板新增 OptiFine 一键安装（自动拉取版本列表并生成运行配置，免手动操作）；下载版本新增 Quilt 模组加载器（兼容 Fabric 生态）；设置中新增 FastMC 国内备用镜像源，多源切换更灵活。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">20.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>版本重命名与下载任务中心</b><p>版本管理支持对已下载版本自由重命名；新增独立「下载任务」页，实时展示下载进度、安装位置并支持一键打开目标文件夹；整合包导入自动补全依赖模组；整合包下载主源实测测速，优先选用最快可用源。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">19.4</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>整合包下载提速</b><p>整合包与模组文件下载前对官方 CDN 与下载端点实测测速，自动选用最快源作主源（两个端点可能走不同边缘节点，国内速度差异明显）；叠加分段并发与失败自动切换镜像，整体下载速度进一步提升。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">19.3</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载与启动链路重构</b><p>依赖库下载由逐库串行改为 12 路并发 + 失败自动补轮，下载速度大幅提升；资源文件并发提高到 16 路；启动前缺失依赖并发补齐，降低「无法进入游戏」概率；Forge 版本列表与 Modrinth API 请求失败自动重试并切换镜像。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">19.2</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>整合包导入体验修复</b><p>整合包下载后自动导入弹窗必现，成功 / 失败结果必达（失败明确显示原因）；导入的整合包压缩包保留在 modpacks 目录并在弹窗中告知路径，可随时手动重新导入；版本管理新增「刷新」按钮，导入完成后一键同步最新版本列表。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">19.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载体验再升级</b><p>下载线程数与速度限制改为音量式滑块调节（最高 256 线程）；多线程下载改用真实下载测速选源、每段至少 1MB 防碎片；速度限制改为全局限速；整合包下载完成后自动导入，弹窗实时展示导入进度，无需手动操作。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">19.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>全面优化 · 提升体验</b><p>多线程下载引擎上线：最高 256 线程并发 + 速度限制（>64 线程提醒卡顿）；下载版本支持自定义名称；取消下载自动清理残留文件；模组与整合包优先官方源、失败自动切换镜像；日志导出兜底修复；关于页新增技术架构展示；全新质感图标上线。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.6</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载稳定性重大修复 · 体验升级</b><p>修复下载任务进度条抽搐与下载直接失败：分段下载进度改为单调递增，换源重试不再倒退；单段瞬时失败自动补齐重试，不再整体判失败；主页环境气泡升级灵动动效（错相浮动 · 呼吸辉光 · 流动高光）；全新低调质感图标上线。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.5</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>全新气泡图标 · 稳定性修复</b><p>全新液态玻璃气泡风格图标上线（灵动光效 · 沉浸光感）；修复启动失败仍累计启动次数导致正版引导计数虚高的问题；分段下载进度改为按真实字节平滑推进，不再长时间卡在某一百分比。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.4</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>并发写盘冲突修复</b><p>修复「无法启动游戏（EPERM: operation not permitted）」：下载任务与启动前资源自检补齐并发写同一批资源文件导致 Windows 文件锁冲突。新增资源阶段互斥锁（同一时刻只允许一路资源写入）；全部写盘操作加入 EPERM/EACCES 自动重试；下载任务进行中启动游戏会明确提示等待，不再出现进程崩溃弹窗。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.3</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>正式开源 · 全新官网</b><p>AOURA 启动器正式在 GitHub 开源（MIT 许可），仓库：github.com/minaiyou/AOURA-Launcher；官网迁至 GitHub Pages：minaiyou.github.io/AOURA-Launcher。关于页更新为「网盘更新 / 官网更新」双按钮：网盘更新直达获取更新页，官网更新直通 GitHub 官网，并新增开源仓库快捷入口。</p></div></div>
+      <div class="tl-row"><div class="tl-ver">18.2</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>游戏语言支持</b><p>修复安装模组底层（Forge/Fabric/NeoForge）后游戏变为英文的问题：新增「游戏语言」设置（默认简体中文），启动前自动写入游戏语言配置；中文语言文件随资源自动补齐，无需额外下载任何底层，所有版本与模组底层均完整支持中文。</p></div></div>
       <div class="tl-row"><div class="tl-ver">18.1</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>启动前资源自检补齐</b><p>修复「无法进入游戏」：下载游戏时若个别资源失败不再静默跳过，统一记录并自动重试补齐；启动游戏前自动扫描缺失资源（PCL 同款做法），发现缺失立即从镜像+官方多源补齐，彻底解决启动时缺文件崩溃（NoSuchFileException）。</p></div></div>
       <div class="tl-row"><div class="tl-ver">18.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>测速选源 · 质感气泡 · 20 主题</b><p>下载再提速：新增下载源测速机制，自动挑选响应最快的镜像/官方源作为主源（PCL 同款思路），分段下载单主源推进、失败快速切换，不再出现卡在进度条不动的情况；模组底层安装的安装器与依赖库同样测速选源，大幅降低「网络或文件问题」失败；主页环境气泡全面重做玻璃质感（高光反射、内阴影、光晕呼吸、星尘微光）；主题扩充到 20 套。</p></div></div>
       <div class="tl-row"><div class="tl-ver">17.0</div><div class="tl-axis"><i class="tl-dot"></i></div><div class="tl-body"><b>下载双源并发 · 环境气泡 · 更稳定</b><p>下载全面提速：分段下载改为镜像 + 官方源同时开跑、快者胜出，慢源不再拖累整段；单段 30 秒超时保护，彻底告别「卡壳/无法下载」；下载失败自动写入日志便于排查。主页游戏环境（版本 / Java / 内存 / 账户）改为与启动键同款液态玻璃气泡，环绕在启动键四周；资源中心移除翻译入口，回归清爽。</p></div></div>
