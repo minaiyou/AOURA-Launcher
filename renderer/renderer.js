@@ -1,4 +1,4 @@
-/* AOURA 启动器 v18.2 · 渲染层逻辑 由珉爱制作 */
+/* AOURA 启动器 v28 · 渲染层逻辑 由珉爱制作 */
 /* --- 轮换字幕（每次启动都不一样） --- */
 const QUOTES = [
   '每一次启动，都是一场光的旅行',
@@ -71,25 +71,33 @@ function modal(title, opts){
   opts = opts || {};
   const m = document.createElement('div');
   m.className = 'modal-mask';
+  const useHtml = !!opts.html;
   m.innerHTML = '<div class="modal"><div class="modal-title">' + title + '</div>' +
-    '<input type="text" class="modal-input" placeholder="' + (opts.placeholder || '') + '" value="' + (opts.value || '') + '">' +
-    '<div class="modal-btns"><button class="btn btn-mini modal-cancel">取消</button><button class="btn btn-mini btn-primary modal-ok">确定</button></div></div>';
+    (useHtml ? '<div class="modal-body">' + opts.html + '</div>'
+             : '<input type="text" class="modal-input" placeholder="' + (opts.placeholder || '') + '" value="' + (opts.value || '') + '">') +
+    '<div class="modal-btns"><button class="btn btn-mini modal-cancel">' + (opts.cancelText || '取消') + '</button><button class="btn btn-mini btn-primary modal-ok">' + (opts.okText || '确定') + '</button></div></div>';
   document.body.appendChild(m);
-  const input = m.querySelector('.modal-input');
-  setTimeout(() => input.focus(), 60);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') close(); });
+  const input = useHtml ? null : m.querySelector('.modal-input');
+  if (input){ setTimeout(() => input.focus(), 60); input.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') close(); }); }
   m.querySelector('.modal-cancel').addEventListener('click', close);
   m.querySelector('.modal-ok').addEventListener('click', ok);
   m.addEventListener('click', e => { if (e.target === m) close(); });
   let done = false;
   function close(){ if (done) return; done = true; m.remove(); opts.onCancel && opts.onCancel(); }
   function ok(){
+    if (useHtml){
+      if (done) return; done = true;
+      m.remove();
+      opts.onOk && opts.onOk();
+      return;
+    }
     const v = input.value.trim();
     if (opts.required && !v){ input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); return; }
     if (done) return; done = true;
     m.remove();
     opts.onOk && opts.onOk(v);
   }
+  if (opts.onOpen) setTimeout(() => opts.onOpen(), 60);
   return { close };
 }
 function confirmDlg(text, onOk){
@@ -106,7 +114,7 @@ function confirmDlg(text, onOk){
 }
 
 /* ================= 路由（底部 Dock） ================= */
-const VIEWS = ['home', 'versions', 'download', 'resources', 'mods', 'multiplayer', 'tech', 'settings', 'about', 'account'];
+const VIEWS = ['home', 'versions', 'download', 'dltasks', 'resources', 'mods', 'multiplayer', 'tech', 'settings', 'about', 'account'];
 /* ===== 闪光粒子系统 v10.3 ===== */
 const SPK_COLORS = ['#9ff6ff', '#c9b8ff', '#ffd98a', '#7dffd9', '#ffffff'];
 function mkSpark(sizeMin, sizeMax, colors, dot){
@@ -179,10 +187,12 @@ function go(view, trigger){
   $('#dlOptMask').classList.remove('open');
   if (currentRs) closeRsDetail();
   if (view === 'download' && !manifestLoaded) loadManifest();
+  if (view === 'settings' && typeof refreshDlSuspendCard === 'function') refreshDlSuspendCard();
   if (view === 'resources' && $('#rsGrid').children.length === 0) searchRs('');
+  if (view === 'dltasks') dtRenderEmpty();
   if (view === 'mods') refreshMods();
   if (trigger){
-    const names = { home: '主页', versions: '版本管理', download: '下载中心', resources: '资源中心', mods: '模组', multiplayer: '联机', tech: '技术说明', settings: '设置', about: '关于', account: '账户' };
+    const names = { home: '主页', versions: '版本管理', download: '下载中心', dltasks: '任务中心', resources: '资源中心', mods: '模组', multiplayer: '联机', tech: '技术说明', settings: '设置', about: '关于', account: '账户' };
     toast('已进入' + names[view]);
     const it = document.querySelector('.dock-item[data-view="' + view + '"]');
     if (it) burst(it, 18, SPK_COLORS);
@@ -299,7 +309,7 @@ async function init(){
   $('#offlineName').value = (cfg.offlineName && NAME_RE.test(cfg.offlineName)) ? cfg.offlineName : 'Player';
   $('#jvmArgs').value = cfg.jvmArgs || '';
   $('#gameArgs').value = cfg.gameArgs || '';
-  $('#mirrorSel').value = cfg.mirror === 'mojang' ? 'mojang' : 'bmclapi';
+  $('#mirrorSel').value = cfg.mirror === 'mojang' ? 'mojang' : cfg.mirror === 'fastmc' ? 'fastmc' : 'bmclapi';
   $('#swLight').classList.toggle('on', cfg.lightEffect !== false);
   $('#swAurora').classList.toggle('on', cfg.dynamicWallpaper !== false);
   $('#swCursor').classList.toggle('on', cfg.cursorGlow !== false);
@@ -375,6 +385,18 @@ async function renderAbout(){
     $('#abEngine').textContent = 'AOURA 启动引擎 v' + info.version + ' · Electron ' + info.electron + ' / Chromium ' + info.chrome + ' / Node ' + info.node;
     if ($('#aboutVer')) $('#aboutVer').textContent = info.version;
     if ($('#abEngine2')) $('#abEngine2').textContent = 'Electron ' + info.electron + ' / Chromium ' + info.chrome + ' / Node ' + info.node;
+    // 28：鸿蒙 PC 适配——关于页展示当前运行平台与适配状态
+    const platEl = $('#curPlatform');
+    if (platEl){
+      const os = info.osName || info.platform || '';
+      if (info.harmonyOs){
+        platEl.innerHTML = '<b>当前平台</b> · ' + escapeHtml(os) + '（鸿蒙 PC 适配版 · 部分能力正在完善中）';
+        platEl.style.color = '#ff9dc0';
+      } else {
+        platEl.innerHTML = '<b>当前平台</b> · ' + escapeHtml(os);
+        platEl.style.color = '';
+      }
+    }
     if ($('#dataDirDesc')){
       const dd = info.dataDir || '';
       $('#dataDirDesc').innerHTML = '<span style="font-family:Cascadia Code,Consolas,monospace;font-size:11px;color:var(--txt-2);word-break:break-all">' + escapeHtml(dd) + '</span><br>配置 · 缓存 · 日志 · Java 均位于启动器安装目录下';
@@ -393,9 +415,8 @@ function updateHome(){
     $('#statVer').textContent = ver.id.split('-')[0];
     $('#curVerMeta').innerHTML =
       '<span>Java ' + (ver.javaMajor || '自动') + '</span>' +
-      '<span>' + (ver.installed ? '文件完整' : '缺少主程序') + '</span>' +
+      '<span>' + (ver.installed ? '文件完整' : '待补齐（启动自动下载）') + '</span>' +
       '<span>' + (ver.type || 'release') + '</span>';
-    $('#btnPlay').disabled = !ver.installed;
   } else {
     $('#curVerName').textContent = '未选择版本';
     $('#curVerMeta').innerHTML = '<span>请先在下载中心安装一个版本</span>';
@@ -408,10 +429,13 @@ function updateHome(){
 }
 function renderDrop(){
   const drop = $('#verDrop');
-  drop.innerHTML = versions.map(v => {
+  // 20.2：底层依赖不单独展示，合并进对应主版本（标注「底层 xxx」）
+  const mains = versions.filter(v => !(v.isBase && !v.userOriginal));
+  drop.innerHTML = mains.map(v => {
     const tag = v.type === 'release' ? '' : '<span class="vd-type">' + (v.type || '') + '</span>';
+    const baseTag = v.inheritsFrom ? '<span class="vd-base">底层 ' + v.inheritsFrom + '</span>' : '';
     return '<div class="vd-item' + (v.id === cfg.currentVersion ? ' cur' : '') + '" data-ver="' + v.id + '">' +
-      '<span class="vd-name">' + v.id + '</span>' + tag +
+      '<span class="vd-name">' + v.id + '</span>' + baseTag + tag +
       '<svg class="vd-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></div>';
   }).join('') || '<div class="vd-item"><span class="vd-name" style="color:var(--txt-faint)">暂无已安装版本</span></div>';
   $$('#verDrop .vd-item').forEach(item => {
@@ -453,6 +477,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrop();
 $('#main').addEventListener('scroll', closeDrop);
 window.addEventListener('resize', closeDrop);
 $$('#btnGoVersions').forEach(b => b.addEventListener('click', () => go('versions')));
+/* 19.2：版本管理刷新按钮 */
+$('#btnRefreshVersions').addEventListener('click', () => {
+  refreshEnv();
+  toast('版本列表已刷新', '最新已安装版本已同步显示', 'ok');
+});
 $$('#btnGoDownload').forEach(b => b.addEventListener('click', () => go('download')));
 $$('#btnGoResources').forEach(b => b.addEventListener('click', () => go('resources')));
 $$('#btnGoMods').forEach(b => b.addEventListener('click', () => go('mods')));
@@ -477,7 +506,7 @@ function setPlayState(playing, versionId){
     $('#playTxt').textContent = '启动游戏';
     $('#btnStop').style.display = 'none';
     const ver = versions.find(v => v.id === cfg.currentVersion);
-    $('#btnPlay').disabled = !(ver && ver.installed) || launching;
+    $('#btnPlay').disabled = !ver || launching; // 缺主程序也可启动：启动时会自动补下
   }
 }
 $('#btnPlay').addEventListener('click', async () => {
@@ -737,6 +766,98 @@ $('#mpCodeInput').addEventListener('input', e => {
 });
 $('#logClear').addEventListener('click', e => { e.stopPropagation(); $('#logBody').innerHTML = ''; });
 
+/* 19.2：整合包自动导入弹窗（必现+成败必达+压缩包位置） */
+const packImportMask = $('#packImportMask'), packImportFill = $('#packImportFill'), packImportStatus = $('#packImportStatus'), packImportName = $('#packImportName'), packImportPath = $('#packImportPath');
+let packImportTimer = null;
+const showPackImport = (d) => {
+  packImportMask.classList.add('open');
+  packImportName.textContent = d.name || '整合包';
+  const pct = Math.max(0, Math.min(100, d.pct || 0));
+  packImportFill.style.width = pct + '%';
+  packImportStatus.textContent = d.status || '导入中…';
+  packImportStatus.classList.toggle('pack-import-status-err', d.ok === false);
+  if (d.path){
+    packImportPath.textContent = '压缩包保存在：' + d.path;
+    packImportPath.style.display = '';
+  }
+};
+A.onPackImport(d => {
+  if (!d) return;
+  clearTimeout(packImportTimer);
+  if (d.pct === 0){ packImportPath.style.display = 'none'; }
+  // 20.0：整合包导入进度同步到独立下载任务页
+  {
+    const key = 'imp:' + (d.name || '整合包');
+    let it = dtItems.get(key);
+    if (!it){
+      const el = document.createElement('div');
+      el.className = 'dt-row';
+      el.innerHTML = '<div class="dt-head"><span class="dt-name"></span><span class="dt-status"></span><span class="dt-pct"></span></div><div class="pbar"><div class="pb-fill"></div></div><div class="dt-foot"><span class="dt-loc"></span></div>';
+      el.querySelector('.dt-name').textContent = '导入整合包：' + (d.name || '');
+      const locEl = el.querySelector('.dt-loc');
+      locEl.textContent = d.path ? '安装位置：' + d.path : '安装位置：—';
+      $('#dtList').prepend(el);
+      it = { el, status: el.querySelector('.dt-status'), pct: el.querySelector('.dt-pct'), bar: el.querySelector('.pb-fill'), locEl, done: false, mx: -1 };
+      dtItems.set(key, it);
+    }
+    if (d.status) it.status.textContent = d.status;
+    if (d.ok === true){ it.done = true; it.el.classList.add('done'); it.pct.textContent = '100%'; it.bar.style.width = '100%'; }
+    else if (d.ok === false){ it.done = true; it.el.classList.add('fail'); it.pct.textContent = '失败'; it.bar.style.width = '100%'; }
+    else { const np = Math.round((d.pct || 0) * 1); if (np > it.mx){ it.mx = np; it.pct.textContent = np + '%'; it.bar.style.width = np + '%'; } }
+  }
+  showPackImport(d);
+  if (d.ok === true && d.pct >= 100){
+    packImportTimer = setTimeout(() => {
+      packImportMask.classList.remove('open');
+      refreshEnv();
+      toast('整合包导入完成', (d.name || '整合包') + ' 已就绪，可在版本管理中查看（压缩包保留在 modpacks 目录）', 'ok');
+    }, 1100);
+  } else if (d.ok === false && d.pct >= 100){
+    packImportTimer = setTimeout(() => { packImportMask.classList.remove('open'); }, 6000);
+    toast('整合包导入失败', (d.status || '导入失败') + '，压缩包保留在 modpacks 目录，可手动重新导入', 'err');
+  }
+});
+packImportMask.addEventListener('click', e => { if (e.target === packImportMask) packImportMask.classList.remove('open'); });
+
+/* 28：存档导入进度条（复用整合包导入浮层 + 任务中心） */
+A.onSaveImport(d => {
+  if (!d) return;
+  clearTimeout(packImportTimer);
+  packImportMask.classList.add('open');
+  packImportName.textContent = d.name || '存档';
+  const pct = Math.max(0, Math.min(100, d.pct || 0));
+  packImportFill.style.width = pct + '%';
+  packImportStatus.textContent = d.status || '导入中…';
+  packImportStatus.classList.toggle('pack-import-status-err', d.ok === false);
+  if (d.path){
+    packImportPath.textContent = '存档目录：' + d.path;
+    packImportPath.style.display = '';
+  }
+  {
+    const key = 'impsave:' + (d.name || '存档');
+    let it = dtItems.get(key);
+    if (!it){
+      const el = document.createElement('div');
+      el.className = 'dt-row';
+      el.innerHTML = '<div class="dt-head"><span class="dt-name"></span><span class="dt-status"></span><span class="dt-pct"></span></div><div class="pbar"><div class="pb-fill"></div></div><div class="dt-foot"><span class="dt-loc"></span></div>';
+      el.querySelector('.dt-name').textContent = '导入存档：' + (d.name || '');
+      const locEl = el.querySelector('.dt-loc');
+      locEl.textContent = d.path ? '存档目录：' + d.path : '存档目录：—';
+      $('#dtList').prepend(el);
+      it = { el, status: el.querySelector('.dt-status'), pct: el.querySelector('.dt-pct'), bar: el.querySelector('.pb-fill'), locEl, done: false, mx: -1 };
+      dtItems.set(key, it);
+    }
+    if (d.status) it.status.textContent = d.status;
+    if (d.ok === true){ it.done = true; it.el.classList.add('done'); it.pct.textContent = '100%'; it.bar.style.width = '100%'; }
+    else if (d.ok === false){ it.done = true; it.el.classList.add('fail'); it.pct.textContent = '失败'; it.bar.style.width = '100%'; }
+    else { const np = Math.round((d.pct || 0) * 1); if (np > it.mx){ it.mx = np; it.pct.textContent = np + '%'; it.bar.style.width = np + '%'; } }
+  }
+  if (d.ok === true && d.pct >= 100){
+    packImportTimer = setTimeout(() => { packImportMask.classList.remove('open'); loadMgr(); toast('存档导入完成', (d.name || '') + ' 已导入', 'ok'); }, 1000);
+  } else if (d.ok === false && d.pct >= 100){
+    packImportTimer = setTimeout(() => { packImportMask.classList.remove('open'); }, 6000);
+  }
+});
 $('#logExport').addEventListener('click', async e => {
   e.stopPropagation();
   try {
@@ -783,16 +904,21 @@ function loaderOfId(id){
   return 'vanilla';
 }
 function vrRow(v, isBase){
+  const baseTag = (v.inheritsFrom && !isBase)
+    ? '<span class="tag tag-base tag-click" data-act="expandBase" data-ver="' + v.id + '" title="点击展开底层依赖">底层 ' + v.inheritsFrom + ' ▾</span>'
+    : '';
   return '<div class="vr-row' + (v.id === cfg.currentVersion ? ' cur' : '') + '" data-ver="' + v.id + '">' +
       '<div class="vr-ico"><svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/><path d="M12 12.2v9"/></svg></div>' +
       '<div class="vr-info">' +
-        '<div class="vr-name">' + v.id + ' ' + loaderTag(v) + ' ' + typeTag(v) + (v.installed ? '' : '<span class="tag tag-old">缺主程序</span>') + (isBase ? '<span class="tag tag-base">底层依赖</span>' : '') + '</div>' +
+        '<div class="vr-name">' + v.id + ' ' + loaderTag(v) + ' ' + typeTag(v) + baseTag + (v.installed ? '' : '<span class="tag tag-old tag-click" data-act="repair" data-ver="' + v.id + '" title="启动时自动补下，点击立即补齐">待补齐·点击补齐</span>') + (isBase ? '<span class="tag tag-base">底层依赖</span>' : '') + '</div>' +
         '<div class="vr-meta"><span>Java ' + (v.javaMajor || '自动') + '</span><span>' + (v.type || 'release') + '</span>' + (v.releaseTime ? '<span>' + v.releaseTime.slice(0,10) + '</span>' : '') + (isBase ? '<span>' + v.baseRefs.length + ' 个版本依赖</span>' : '') + '</div>' +
+        (v.inheritsFrom && !isBase ? '<div class="vr-sub" data-sub="' + v.id + '" style="display:none"></div>' : '') +
       '</div>' +
       '<div class="vr-actions">' +
         (v.id === cfg.currentVersion ? '' : '<button class="btn btn-mini" data-act="set" data-ver="' + v.id + '">设为当前</button>') +
+        (isBase ? '' : '<button class="btn btn-mini" data-act="rename" data-ver="' + v.id + '" title="重命名版本">重命名</button>') +
         '<button class="btn btn-mini" data-act="dup" data-ver="' + v.id + '" title="复制版本">复制</button>' +
-        '<button class="btn btn-mini" data-act="launch" data-ver="' + v.id + '" ' + (v.installed ? '' : 'disabled') + '>启动</button>' +
+        '<button class="btn btn-mini" data-act="launch" data-ver="' + v.id + '" title="启动时会自动补下缺失文件">启动</button>' +
         (isBase
           ? '<button class="btn btn-mini" disabled title="该版本是其他版本的底层依赖，删除会导致其无法启动">删除</button>'
           : '<button class="btn btn-mini" data-act="del" data-ver="' + v.id + '" title="删除版本" style="color:#ff8a94">删除</button>') +
@@ -811,16 +937,8 @@ function renderVersions(){
     box.innerHTML = '<div class="vr-empty">尚未安装任何游戏版本<br><b>前往「下载中心」选择并下载一个版本</b></div>';
     return;
   }
+  // 20.2：底层依赖不再单独列出，整合进对应主版本行的「底层 ▾」下拉；仅用户主动下载的原版单独展示
   let html = list.map(v => vrRow(v, false)).join('');
-  if (baseGroup.length){
-    html += '<div class="vr-base-folder">' +
-      '<button class="vr-base-head" data-act="toggleBase">' +
-        '<svg class="vr-base-arrow" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></svg>' +
-        '<span>底层依赖（' + baseGroup.length + '）· 随加载器自动下载，不可单独删除</span>' +
-      '</button>' +
-      '<div class="vr-base-body">' + baseGroup.map(v => vrRow(v, true)).join('') + '</div>' +
-    '</div>';
-  }
   box.innerHTML = html || '<div class="vr-empty">没有匹配「' + q + '」的版本</div>';
   $$('#vrList [data-act="toggleBase"]').forEach(b => {
     b.addEventListener('click', () => {
@@ -834,11 +952,45 @@ function renderVersions(){
       e.stopPropagation();
       const id = b.dataset.ver;
       const act = b.dataset.act;
-      if (act === 'set'){
+      if (act === 'expandBase'){
+        const row = b.closest('.vr-row');
+        const sub = row && row.querySelector('.vr-sub');
+        if (!sub) return;
+        if (sub.dataset.loaded){
+          sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+          b.innerHTML = sub.style.display === 'none' ? (b.innerHTML.replace('▴', '▾')) : b.innerHTML.replace('▾', '▴');
+          return;
+        }
+        const mainVer = versions.find(x => x.id === id);
+        const baseVer = versions.find(x => x.id === (mainVer && mainVer.inheritsFrom));
+        if (baseVer){
+          sub.innerHTML = '<div class="vr-sub-row"><span class="vr-sub-name">底层 ' + baseVer.id + ' ' + loaderTag(baseVer) + '</span><button class="btn btn-mini" data-act="launch" data-ver="' + baseVer.id + '" ' + (baseVer.installed ? '' : 'disabled') + '>启动原版</button></div>';
+        } else {
+          sub.innerHTML = '<div class="vr-sub-row dim">底层 ' + (mainVer && mainVer.inheritsFrom || '') + ' 未安装（随主版本自动补齐）</div>';
+        }
+        sub.dataset.loaded = '1';
+        sub.style.display = 'block';
+        b.innerHTML = b.innerHTML.replace('▾', '▴');
+        return;
+      } else if (act === 'set'){
         cfg.currentVersion = id;
         A.setConfig({ currentVersion: id });
         renderVersions(); updateHome(); renderDrop();
         toast('已设为当前版本', id, 'ok');
+      } else if (act === 'rename'){
+        modal('重命名版本「' + id + '」为', {
+          value: id,
+          required: true,
+          onOk: async newName => {
+            newName = (newName || '').trim();
+            if (!newName || newName === id) return;
+            try {
+              const r = await A.renameVersion(id, newName);
+              if (r && r.ok){ toast('版本已重命名为「' + r.name + '」', newName, 'ok'); await refreshEnv(); }
+              else toast('重命名失败', (r && r.msg) || '未知错误', 'warn');
+            } catch(err){ toast('重命名失败', err.message, 'warn'); }
+          }
+        });
       } else if (act === 'dup'){
         modal('复制版本为（新版本 ID）', {
           value: id + '-copy',
@@ -851,6 +1003,15 @@ function renderVersions(){
             } catch(err){ toast('复制失败', err.message, 'warn'); }
           }
         });
+      } else if (act === 'repair'){
+        toast('正在补齐主程序…', id, 'ok');
+        (async () => {
+          try {
+            const r = await A.repairMain(id);
+            if (r && r.ok){ toast('主程序已补齐', id, 'ok'); await refreshEnv(); }
+            else toast('补齐失败', (r && r.msg) || '未知错误', 'warn');
+          } catch(err){ toast('补齐失败', err.message, 'warn'); }
+        })();
       } else if (act === 'del'){
         confirmDlg('确定删除版本「' + id + '」吗？此操作不可恢复。', async () => {
           try {
@@ -908,19 +1069,61 @@ function openMgr(kind){
   $('#mgrSub').textContent = mgrSubText();
   $('#mgrIcon').innerHTML = MGR_ICON[kind];
   $('#mgrActions').innerHTML = kind === 'packs'
-    ? '<button class="btn btn-glow" id="mgrImport"><svg viewBox="0 0 24 24"><path d="M12 5v10"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5"/><path d="M4 19.5h16"/></svg>导入整合包（zip / mrpack）</button>'
+    ? '<button class="btn btn-glow" id="mgrImport"><svg viewBox="0 0 24 24"><path d="M12 5v10"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5"/><path d="M4 19.5h16"/></svg>导入整合包（zip / mrpack / CurseForge）</button>'
     : kind === 'saves'
     ? '<button class="btn btn-glow" id="mgrImportSave"><svg viewBox="0 0 24 24"><path d="M12 5v10"/><path d="m7.5 11.5 4.5 4.5 4.5-4.5"/><path d="M4 19.5h16"/></svg>导入存档（zip）</button>'
+    : kind === 'shaderpacks'
+    ? '<button class="btn btn-glow" id="mgrOptiFine"><svg viewBox="0 0 24 24"><path d="M4 17.5 8.5 6l3 8 2.5-5.5L17 17.5z"/><circle cx="16.5" cy="6.5" r="1.6"/></svg>安装 OptiFine（光影 · 优化）</button>'
     : '';
   $('#mgrMask').classList.add('open');
   $('#mgrPanel').classList.add('open');
   if ($('#mgrImport')) $('#mgrImport').addEventListener('click', importPack);
   if ($('#mgrImportSave')) $('#mgrImportSave').addEventListener('click', importSave);
+  if ($('#mgrOptiFine')) $('#mgrOptiFine').addEventListener('click', openOptiFineDlg);
   loadMgr();
 }
 function closeMgr(){
   $('#mgrMask').classList.remove('open');
   $('#mgrPanel').classList.remove('open');
+}
+/* --- 20.1：OptiFine 一键安装 --- */
+async function openOptiFineDlg(){
+  const det = await A.detectMinecraft().catch(() => null);
+  const versions = (det && det.versions) || [];
+  const okVers = (versions || []).filter(v => v.installed && !/^OptiFine_/i.test(v.id) && !v.isBase);
+  if (!okVers.length){
+    toast('暂无可安装 OptiFine 的原版', '请先下载并安装原版游戏（如 1.20.1）', 'warn');
+    return;
+  }
+  const opts = okVers.map(v => '<option value="' + v.id + '">' + v.id + '</option>').join('');
+  modal('安装 OptiFine（需已安装原版）', {
+    html: '<div class="of-dlg"><div class="of-row"><label>游戏版本</label><select id="ofMc">' + opts + '</select></div><div class="of-row"><label>OptiFine 版本</label><select id="ofVer"><option value="">加载中…</option></select></div><div class="of-tip">OptiFine 用于光影与性能优化，基于对应原版运行。安装完成后可在「版本管理」中看到 OptiFine 版本。</div></div>',
+    okText: '下载并安装',
+    onOpen: async () => {
+      const mcSel = $('#ofMc'), verSel = $('#ofVer');
+      const loadList = async () => {
+        verSel.innerHTML = '<option value="">加载中…</option>';
+        const r = await A.optifineList(mcSel.value);
+        if (r && r.ok){
+          const ls = (r.list || []).filter(x => !/^preview/i.test(x.filename));
+          if (!ls.length){ verSel.innerHTML = '<option value="">该版本暂无正式 OptiFine</option>'; return; }
+          verSel.innerHTML = ls.map(x => '<option value="' + x.type + '|' + x.patch + '">OptiFine ' + x.type + '_' + x.patch + (x.forge ? '（' + x.forge + '）' : '') + '</option>').join('');
+        } else {
+          verSel.innerHTML = '<option value="">加载失败：' + ((r && r.error) || '网络错误') + '</option>';
+        }
+      };
+      mcSel.addEventListener('change', loadList);
+      loadList();
+    },
+    onOk: async () => {
+      const mc = $('#ofMc').value, vv = $('#ofVer').value;
+      if (!vv || vv.indexOf('|') < 0) return;
+      const [type, patch] = vv.split('|');
+      const r = await A.optifineInstall(mc, type, patch);
+      if (r && r.ok){ toast('OptiFine 安装完成', r.name + ' 已就绪，可在版本管理中查看并启动', 'ok'); await refreshEnv(); }
+      else toast('OptiFine 安装失败', (r && r.error) || '未知错误', 'warn');
+    }
+  });
 }
 $('#mgrMask').addEventListener('click', closeMgr);
 $('#mgrClose').addEventListener('click', closeMgr);
@@ -987,7 +1190,7 @@ async function importPack(){
 async function importSave(){
   const r = await A.mgrImportSaves(cfg.currentVersion || '');
   if (r && r.ok){
-    toast('存档导入成功', r.name, 'ok');
+    // 成功提示由进度浮层统一处理（避免重复弹 toast）
     loadMgr();
   } else if (r){
     toast('导入失败', r.msg || '', 'warn');
@@ -995,12 +1198,13 @@ async function importSave(){
 }
 
 /* ================= 下载中心 ================= */
+// 28：下载功能已全面恢复——版本清单与下载入口完全可用（BMCLAPI / Mojang 多源加速）
 async function loadManifest(){
   try {
     $('#dlSub').textContent = '正在获取版本清单…';
     manifest = await A.getManifest();
     manifestLoaded = true;
-    $('#dlSub').textContent = 'BMCLAPI / Mojang 官方 · 共 ' + manifest.versions.length + ' 个版本';
+    $('#dlSub').textContent = 'BMCLAPI / Mojang 官方 · 共 ' + (manifest.versions || []).length + ' 个版本';
     renderDl();
   } catch(e){
     $('#dlSub').textContent = '获取版本清单失败：' + e.message;
@@ -1084,7 +1288,7 @@ $$('.dl-filter .chip').forEach(ch => ch.addEventListener('click', () => {
 }));
 
 /* --- 下载选项弹层：仅原版 / 原版+加载器 --- */
-const LD_NAME = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' };
+const LD_NAME = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge', quilt: 'Quilt' };
 let dlOptBusy = false;
 async function openDlOpt(id){
   if (dlOptBusy){ toast('已有下载任务进行中', '请等待当前任务完成', 'warn'); return; }
@@ -1095,7 +1299,8 @@ async function openDlOpt(id){
     { opt: '', name: '仅下载原版', desc: '纯净原版体验，推荐先确认可正常启动', ic: '<svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/></svg>' },
     { opt: 'fabric', name: '原版 + Fabric', desc: '轻量模组加载器，适配多数优化与功能模组', ic: '<svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>' },
     { opt: 'forge', name: '原版 + Forge', desc: '经典模组加载器，兼容大量老牌大型模组', ic: '<svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>' },
-    { opt: 'neoforge', name: '原版 + NeoForge', desc: 'Forge 继任者，面向最新版本的模组生态', ic: '<svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>' }
+    { opt: 'neoforge', name: '原版 + NeoForge', desc: 'Forge 继任者，面向最新版本的模组生态', ic: '<svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>' },
+    { opt: 'quilt', name: '原版 + Quilt', desc: '兼容 Fabric 模组的加载器，生态灵活', ic: '<svg viewBox="0 0 24 24"><path d="M12 3 5 5.8v5.4c0 4.4 3 8 7 9.8 4-1.8 7-5.4 7-9.8V5.8z"/></svg>' }
   ];
   $('#dlOptOpts').innerHTML = opts.map(o =>
     '<button class="dlopt-opt" data-opt="' + o.opt + '">' +
@@ -1176,7 +1381,14 @@ function startDlOpt(id, opt, lv){
   const it = dlEnsure(key, id + (opt ? ' · 原版+' + LD_NAME[opt] : ' · 仅原版'));
   it.status.textContent = '准备中…';
   dlWithLoader = opt ? { id, type: opt } : null;
-  const p = opt ? A.downloadVersionWithLoader(id, opt, lv) : A.downloadVersion(id);
+  // 19.0：自定义版本名称（仅原版下载生效）
+  let dlName = '';
+  const nmEl = $('#dlOptName');
+  if (nmEl && !opt){
+    dlName = (nmEl.value || '').trim();
+    nmEl.value = '';
+  }
+  const p = opt ? A.downloadVersionWithLoader(id, opt, lv) : A.downloadVersion(id, dlName ? { name: dlName } : undefined);
   toast(opt ? '开始下载并安装加载器' : '开始下载原版', id + (opt ? ' · ' + LD_NAME[opt] : ''), 'ok');
   p.then(res => {
     if (!res.ok){
@@ -1245,9 +1457,124 @@ function updateDlCount(){
     f.style.display = 'none';
   }
 }
+/* ===== 20.0 下载任务页（独立展示进度 + 安装位置 + 打开文件夹）===== */
+const dtItems = new Map();
+function dtPhaseLabel(p){
+  if (p.phase === 'start') return '获取版本信息…';
+  if (p.phase === 'jar') return '下载主程序';
+  if (p.phase === 'lib') return '下载依赖库 ' + ((p.index||0) + 1) + '/' + (p.totalLibs||'?');
+  if (p.phase === 'index') return '下载资源索引';
+  if (p.phase === 'asset') return '下载资源文件 ' + (p.index||0) + '/' + (p.totalObjs||'?');
+  if (p.phase === 'mods' || p.phase === 'shaderpacks' || p.phase === 'resourcepacks' || p.phase === 'modpacks') return '下载资源';
+  return p.phase || '';
+}
+function dtPv(p){
+  if (p.phase === 'jar' || p.phase === 'index' || p.phase === 'mods' || p.phase === 'shaderpacks' || p.phase === 'resourcepacks' || p.phase === 'modpacks')
+    return p.total ? p.received / p.total : 0;
+  if (p.phase === 'lib') return p.totalLibs ? ((p.index||0) + (p.total ? p.received/p.total : 0)) / p.totalLibs : 0;
+  if (p.phase === 'asset') return p.totalObjs ? (p.index||0) / p.totalObjs : 0;
+  if (p.phase === 'start') return 0.02;
+  return 0;
+}
+function dtNameOf(p){
+  return p.task === '资源下载' ? (p.name || '资源') : (p.task === '版本信息' ? '版本下载' : (p.task || '下载'));
+}
+function dtSync(p, key){
+  const name = dtNameOf(p);
+  const loc = p.loc || '';
+  let it = dtItems.get(key);
+  if (!it){
+    const emptyEl = document.querySelector('#dtList .dt-empty');
+    if (emptyEl) emptyEl.remove();
+    const el = document.createElement('div');
+    el.className = 'dt-row';
+    el.innerHTML = '<div class="dt-head"><span class="dt-name"></span><span class="dt-status"></span><span class="dt-pct"></span></div><div class="pbar"><div class="pb-fill"></div></div><div class="dt-foot"><span class="dt-loc"></span><span class="dt-btns"><button class="btn btn-mini dt-open">打开文件夹</button><button class="btn btn-mini dt-del" title="删除本次任务下载的内容">删除</button></span></div>';
+    el.querySelector('.dt-name').textContent = name;
+    el.querySelector('.dt-name').title = name;
+    const locEl = el.querySelector('.dt-loc');
+    locEl.textContent = loc ? '安装位置：' + loc : '安装位置：—';
+    if (loc) locEl.title = loc;
+    const delBtn = el.querySelector('.dt-del');
+    delBtn.addEventListener('click', () => dtRemove(key, it));
+    el.querySelector('.dt-open').addEventListener('click', () => { if (loc) A.openPath(loc); });
+    $('#dtList').prepend(el);
+    it = { el, status: el.querySelector('.dt-status'), pct: el.querySelector('.dt-pct'), bar: el.querySelector('.pb-fill'), locEl, done: false, progMax: {}, fileName: p.name || '', _locShown: !!loc };
+    dtItems.set(key, it);
+  } else {
+    if (p.name) it.fileName = p.name;
+    if (loc && !it._locShown){
+      it._locShown = true;
+      it.locEl.textContent = '安装位置：' + loc;
+      it.locEl.title = loc;
+      it.el.querySelector('.dt-open').addEventListener('click', () => { if (loc) A.openPath(loc); });
+    }
+  }
+  if (p.phase === 'allDone'){ dtDone(key); return; }
+  if (p.phase === 'error' || p.phase === 'cancel'){ dtFail(key, p.msg || '任务已结束'); return; }
+  const label = dtPhaseLabel(p);
+  if (label) it.status.textContent = label;
+  // 20.2：进度单调保护与悬浮窗完全一致（按 阶段+序号 记录，阶段切换可回落后不互相干扰）
+  const np = Math.round(dtPv(p) * 100);
+  const mk = key + ':' + (p.phase || '') + ':' + (p.index || 0);
+  if (np <= (it.progMax[mk] || -1)) return;
+  it.progMax[mk] = np;
+  it.pct.textContent = np + '%';
+  it.bar.style.width = np + '%';
+}
+/* 20.2：任务中心删除：进行中=取消下载并清理；已完成=删除本次下载的版本/文件（确认后） */
+async function dtRemove(key, it){
+  if (!it.done){
+    A.cancelDownload();
+    it.done = true; it.el.classList.add('fail');
+    it.status.textContent = '已取消（本次下载的临时文件已清理）'; it.pct.textContent = '—';
+    toast('下载已取消', '本次下载的临时文件已清理');
+    return;
+  }
+  if (key.indexOf('ver:') === 0){
+    const vid = key.slice(4);
+    confirmDlg('删除本次下载的版本「' + vid + '」及其文件？此操作不可恢复。', async () => {
+      try {
+        await A.deleteVersion(vid);
+        toast('已删除版本', vid);
+        it.el.remove(); dtItems.delete(key); dtRenderEmpty(); await refreshEnv();
+      } catch(err){ toast('删除失败', err.message, 'warn'); }
+    });
+  } else if (key.indexOf('res:') === 0 || key.indexOf('imp:') === 0){
+    const fn = it.fileName || '';
+    if (!fn || !it.locEl || !it._locShown){
+      toast('该任务暂不支持删除', '缺少文件信息', 'warn'); return;
+    }
+    const dir = it.locEl.textContent.replace(/^安装位置：/, '');
+    confirmDlg('删除本次下载的文件「' + fn + '」？此操作不可恢复。', async () => {
+      const r = await A.removeResFile(dir, fn);
+      if (r && r.ok){ toast('已删除文件', fn); it.el.remove(); dtItems.delete(key); dtRenderEmpty(); }
+      else toast('删除失败', (r && r.error) || '未知错误', 'warn');
+    });
+  } else {
+    toast('该任务不支持删除', '可手动在对应位置清理', 'warn');
+  }
+}
+function dtDone(key){
+  const it = dtItems.get(key); if (!it || it.done) return;
+  it.done = true; it.el.classList.add('done');
+  it.status.textContent = '已完成'; it.pct.textContent = '100%'; it.bar.style.width = '100%';
+}
+function dtFail(key, msg){
+  const it = dtItems.get(key); if (!it || it.done) return;
+  it.done = true; it.el.classList.add('fail');
+  it.status.textContent = msg || '下载失败';
+  it.pct.textContent = '失败'; it.bar.style.width = '100%';
+}
+function dtRenderEmpty(){
+  const list = $('#dtList');
+  if (!dtItems.size){
+    list.innerHTML = '<div class="dt-empty">暂无下载任务<br>前往「下载中心」选择版本，或在「资源中心」下载模组 / 整合包</div>';
+  }
+}
 A.onDownloadProgress(p => {
   const key = dlKey(p);
   if (!key) return;
+  dtSync(p, key); // 20.0：同步到独立下载任务页
   if (p.phase === 'allDone'){
     if (dlWithLoader && key === 'ver:' + dlWithLoader.id){
       const it = dlItems.get(key);
@@ -1271,8 +1598,15 @@ A.onDownloadProgress(p => {
   else if (p.phase === 'asset'){ label = '下载资源文件 ' + (p.index||0) + '/' + (p.totalObjs||'?'); pv = p.totalObjs ? (p.index||0) / p.totalObjs : 0; }
   else if (p.phase === 'mods' || p.phase === 'shaderpacks' || p.phase === 'resourcepacks' || p.phase === 'modpacks'){ label = '下载资源'; pv = p.total ? p.received / p.total : 0; }
   if (label) it.status.textContent = label;
-  it.pct.textContent = Math.round(pv * 100) + '%';
-  it.bar.style.width = Math.round(pv * 100) + '%';
+  // 18.6：进度单调保护 + 节流 —— 同阶段进度只增不减（换源重试/并发交错时主进程已保证，这里双保险），
+  // 且数值未变化时不再写 DOM，杜绝进度条倒退抽搐与高频刷新
+  const np = Math.round(pv * 100);
+  const mk = key + ':' + (p.phase || '') + ':' + (p.index || 0);
+  if (!it._progMax) it._progMax = {};
+  if (np <= (it._progMax[mk] || -1)) return;
+  it._progMax[mk] = np;
+  it.pct.textContent = np + '%';
+  it.bar.style.width = np + '%';
 });
 $('#dlFloatCancel').addEventListener('click', () => {
   A.cancelDownload();
@@ -1375,31 +1709,40 @@ $$('.rs-tabs .chip').forEach(ch => ch.addEventListener('click', () => {
 }));
 
 /* --- 资源详情抽屉：支持源 + 版本单独下载 --- */
-async function openRsDetail(hit){
-  const detail = $('#rsDetail'), mask = $('#rsMask');
-  $('#rsdBody').innerHTML = '<div class="rs-empty">正在获取项目详情…</div>';
-  $('#rsdIcon').innerHTML = '<svg viewBox="0 0 24 24"><rect x="3.5" y="10" width="17" height="11" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>';
-  $('#rsdName').textContent = hit.title;
-  $('#rsdMeta').textContent = fmtNum(hit.downloads) + ' 下载 · ' + (hit.author || '');
-  currentRs = hit;
-  detail.classList.add('open'); mask.classList.add('open');
-  try {
-    const p = await A.modrinthProject(hit.id);
-    if (currentRs !== hit) return;
-    $('#rsdName').textContent = p.title;
-    $('#rsdMeta').textContent = fmtNum(p.downloads) + ' 下载 · ' + (p.followers || 0) + ' 收藏 · ' + p.author;
-    $('#rsdIcon').innerHTML = p.icon
-      ? '<img src="' + p.icon + '" alt="" onerror="this.style.display=\'none\'">'
-      : '<svg viewBox="0 0 24 24"><rect x="3.5" y="10" width="17" height="11" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>';
-    const chips = (arr, onSet) => arr.slice(0, 24).map(x => '<span' + (onSet && onSet.has(x) ? ' class="on"' : '') + '>' + escapeHtml(x) + '</span>').join('') || '<span style="opacity:.5">不限</span>';
-    const loaderSet = new Set((p.versions || []).flatMap(v => v.loaders || []));
-    const gameSet = new Set((p.versions || []).flatMap(v => v.game_versions || []));
+let rsProj = null;
+const rsFilter = { loaders: new Set(), games: new Set() };
+/* 20.6：模组详情筛选器——点击底层/版本 chip 点亮选中，未选中的版本被过滤 */
+function renderRsDetail(){
+  const p = rsProj;
+  if (!p) return;
+  const chipsHtml = (arr, type, onSet) => (arr || []).slice(0, 24).map(x =>
+    '<span class="chip' + (onSet.has(x) ? '' : ' dim') + (rsFilter[type === 'l' ? 'loaders' : 'games'].has(x) ? ' on' : '') + '" data-f="' + type + '" data-v="' + escapeHtml(x) + '">' + escapeHtml(x) + '</span>'
+  ).join('') || '<span style="opacity:.5">不限</span>';
+  const loaderSet = new Set((p.versions || []).flatMap(v => v.loaders || []));
+  const gameSet = new Set((p.versions || []).flatMap(v => v.game_versions || []));
+  const filtered = (p.versions || []).filter(v =>
+    (!rsFilter.loaders.size || (v.loaders || []).some(l => rsFilter.loaders.has(l))) &&
+    (!rsFilter.games.size || (v.game_versions || []).some(g => rsFilter.games.has(g)))
+  );
+  const filtering = rsFilter.loaders.size > 0 || rsFilter.games.size > 0;
+  const depBlock = (p.deps && p.deps.length)
+      ? '<div class="rsd-block"><div class="rsd-block-t">需要的前置模组（' + p.deps.length + '）· 点击可跳转下载</div><div class="rsd-deps">' +
+        p.deps.map(d =>
+          '<div class="rsd-dep" data-dep="' + d.id + '">' +
+            (d.icon ? '<img class="rsd-dep-ico" src="' + d.icon + '" alt="" onerror="this.remove()">' : '<div class="rsd-dep-ico"><svg viewBox="0 0 24 24"><rect x="3.5" y="10" width="17" height="11" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg></div>') +
+            '<span class="rsd-dep-name">' + escapeHtml(d.title) + '</span>' +
+            '<span class="rsd-dep-meta">' + fmtNum(d.downloads) + ' 下载</span>' +
+            '<button class="btn btn-mini">查看并下载</button>' +
+          '</div>'
+        ).join('') + '</div></div>'
+      : '';
     $('#rsdBody').innerHTML =
-      (p.description ? '<div class="rsd-desc">' + escapeHtml(p.description) + '</div>' : '') +
-      '<div class="rsd-block"><div class="rsd-block-t">支持的加载器（底层）</div><div class="rsd-chips">' + chips(p.loaders || [], loaderSet) + '</div></div>' +
-      '<div class="rsd-block"><div class="rsd-block-t">支持的游戏版本</div><div class="rsd-chips">' + chips(p.game_versions || [], gameSet) + '</div></div>' +
-      '<div class="rsd-block"><div class="rsd-block-t">全部版本 · 点击单独下载（' + p.versions.length + '）</div>' +
-        '<div class="rsd-vers">' + p.versions.slice(0, 40).map(v =>
+      (p.description ? '<div class="rsd-desc">' + escapeHtml(p.description) + '</div>' : '') + depBlock +
+      '<div class="rsd-block"><div class="rsd-block-t">支持的加载器（底层）<i class="rsd-hint">点击筛选</i></div><div class="rsd-chips">' + chipsHtml(p.loaders, 'l', loaderSet) + '</div></div>' +
+      '<div class="rsd-block"><div class="rsd-block-t">支持的游戏版本<i class="rsd-hint">点击筛选</i></div><div class="rsd-chips">' + chipsHtml(p.game_versions, 'g', gameSet) + '</div></div>' +
+      '<div class="rsd-block"><div class="rsd-block-t">' + (filtering ? '筛选结果' : '全部版本') + ' · 点击单独下载（' + filtered.length + '/' + p.versions.length + '）' +
+        (filtering ? '<button class="btn btn-mini rsd-clear">清除筛选</button>' : '') + '</div>' +
+        '<div class="rsd-vers">' + filtered.slice(0, 60).map(v =>
           '<div class="rsd-ver" data-ver-id="' + v.id + '">' +
             '<div class="rsd-ver-info">' +
               '<div class="rsd-ver-name">' + escapeHtml(v.version_number || v.name || v.id) + '</div>' +
@@ -1412,6 +1755,23 @@ async function openRsDetail(hit){
             '<button class="btn btn-mini" data-dl="' + v.id + '" data-fn="' + escapeHtml(v.files[0] ? v.files[0].filename : '') + '">下载</button>' +
           '</div>'
         ).join('') + '</div></div>';
+    // 20.6：筛选 chip 点击 + 清除筛选
+    $$('#rsdBody .chip').forEach(c => c.addEventListener('click', () => {
+      const f = c.dataset.f, v = c.dataset.v;
+      const set = f === 'l' ? rsFilter.loaders : rsFilter.games;
+      if (set.has(v)) set.delete(v); else set.add(v);
+      renderRsDetail();
+    }));
+    const clearBtn = $('#rsdBody .rsd-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => { rsFilter.loaders.clear(); rsFilter.games.clear(); renderRsDetail(); });
+    // 20.3：前置模组一键跳转——关闭当前详情，打开前置模组的下载页
+    $$('#rsdBody [data-dep]').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const dep = p.deps.find(x => x.id === b.dataset.dep);
+      if (!dep) return;
+      closeRsDetail();
+      openRsDetail({ id: dep.id, title: dep.title, downloads: dep.downloads, author: dep.author, icon: dep.icon });
+    }));
     $$('#rsdBody [data-dl]').forEach(b => b.addEventListener('click', e => {
       e.stopPropagation();
       const vid = b.dataset.dl, fn = b.dataset.fn;
@@ -1430,6 +1790,29 @@ async function openRsDetail(hit){
         toast('资源下载失败', err.message, 'warn');
       });
     }));
+  }
+
+/* 20.6：模组详情（数据加载 + 头部 + 渲染入口） */
+async function openRsDetail(hit){
+  const detail = $('#rsDetail'), mask = $('#rsMask');
+  $('#rsdBody').innerHTML = '<div class="rs-empty">正在获取项目详情…</div>';
+  $('#rsdIcon').innerHTML = '<svg viewBox="0 0 24 24"><rect x="3.5" y="10" width="17" height="11" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>';
+  $('#rsdName').textContent = hit.title;
+  $('#rsdMeta').textContent = fmtNum(hit.downloads) + ' 下载 · ' + (hit.author || '');
+  currentRs = hit;
+  detail.classList.add('open'); mask.classList.add('open');
+  try {
+    const p = await A.modrinthProject(hit.id);
+    if (currentRs !== hit) return;
+    $('#rsdName').textContent = p.title;
+    $('#rsdMeta').textContent = fmtNum(p.downloads) + ' 下载 · ' + (p.followers || 0) + ' 收藏 · ' + p.author;
+    $('#rsdIcon').innerHTML = p.icon
+      ? '<img src="' + p.icon + '" alt="" onerror="this.remove()">'
+      : '<svg viewBox="0 0 24 24"><rect x="3.5" y="10" width="17" height="11" rx="3"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>';
+    rsProj = p;
+    rsFilter.loaders.clear();
+    rsFilter.games.clear();
+    renderRsDetail();
   } catch(e){
     if (currentRs === hit) $('#rsdBody').innerHTML = '<div class="rs-empty">获取详情失败：' + escapeHtml(e.message) + '</div>';
   }
@@ -1438,6 +1821,9 @@ $('#rsdClose').addEventListener('click', closeRsDetail);
 $('#rsMask').addEventListener('click', closeRsDetail);
 function closeRsDetail(){
   currentRs = null;
+  rsProj = null;
+  rsFilter.loaders.clear();
+  rsFilter.games.clear();
   $('#rsDetail').classList.remove('open');
   $('#rsMask').classList.remove('open');
 }
@@ -1469,13 +1855,10 @@ async function loadLoaderVersions(){
       ldLoaderVersions = await A.fabricVersions(mc);
       sel.innerHTML = ldLoaderVersions.map((v, i) => '<option value="' + v + '"' + (i === 0 ? ' selected' : '') + '>' + v + (i === 0 ? '（推荐）' : '') + '</option>').join('') || '<option value="">暂无可用版本</option>';
     } else if (ldType === 'forge'){
-      const promos = await A.forgePromos();
-      const hit = promos.find(p => p.mc === mc) || promos.find(p => mc.startsWith(p.mc + '-') || p.mc.startsWith(mc + '-'));
-      const forgeVer = hit ? (mc + '-' + hit.forge) : '';
-      ldLoaderVersions = forgeVer ? [forgeVer] : [];
-      sel.innerHTML = forgeVer
-        ? '<option value="' + forgeVer + '" selected>' + forgeVer + '（' + (hit.tier === 'recommended' ? '推荐' : '最新') + '）</option>'
-        : '<option value="">该版本暂无 Forge 推荐版本</option>';
+      // 20.5：Forge 官方 promotions 接口当前不稳定、bmclapi2 的 promotions_slim 已下线（404），
+      // 直接使用 BMCLAPI 的 forge/minecraft/{mc} 版本列表（实测可用），最新 build 优先
+      ldLoaderVersions = await A.forgeVersions(mc);
+      sel.innerHTML = ldLoaderVersions.map((v, i) => '<option value="' + v + '"' + (i === 0 ? ' selected' : '') + '>' + v + (i === 0 ? '（最新）' : '') + '</option>').join('') || '<option value="">该版本暂无 Forge 版本</option>';
     } else {
       ldLoaderVersions = await A.neoforgeVersions(mc);
       sel.innerHTML = ldLoaderVersions.map((v, i) => '<option value="' + v + '"' + (i === 0 ? ' selected' : '') + '>' + v + (i === 0 ? '（推荐）' : '') + '</option>').join('') || '<option value="">暂无可用版本</option>';
@@ -1557,10 +1940,11 @@ async function refreshMods(){
   const box = $('#modsList');
   const ver = $('#modsVerSel') ? $('#modsVerSel').value : '';
   if (!ver && versions.length){
-    // 首次进入：默认选中当前启动版本
-    const def = cfg.currentVersion && versions.find(v => v.id === cfg.currentVersion) ? cfg.currentVersion : versions[0].id;
+    // 首次进入：默认选中当前启动版本（主版本；底层依赖不参与选择）
+    const mains = versions.filter(v => !(v.isBase && !v.userOriginal));
+    let def = cfg.currentVersion && mains.find(v => v.id === cfg.currentVersion) ? cfg.currentVersion : (mains[0] ? mains[0].id : '');
     const sel = $('#modsVerSel');
-    if (sel && (sel.options.length <= 1 || sel.options.length !== versions.length)){
+    if (sel && (sel.options.length <= 1 || sel.options.length !== mains.length)){
       fillModsVerSel(def);
     }
   }
@@ -1616,7 +2000,9 @@ async function refreshMods(){
 function fillModsVerSel(def){
   const sel = $('#modsVerSel');
   if (!sel) return;
-  sel.innerHTML = versions.map(v => '<option value="' + escapeHtml(v.id) + '"' + (v.id === def ? ' selected' : '') + '>' + escapeHtml(v.id) + '</option>').join('');
+  // 28：与版本管理/主页一致，过滤随加载器自动创建的底层依赖原版（仅显示主版本与用户主动下载的原版）
+  const mains = versions.filter(v => !(v.isBase && !v.userOriginal));
+  sel.innerHTML = mains.map(v => '<option value="' + escapeHtml(v.id) + '"' + (v.id === def ? ' selected' : '') + '>' + escapeHtml(v.id) + '</option>').join('');
 }
 $('#btnRefreshMods').addEventListener('click', refreshMods);
 if ($('#modsVerSel')) $('#modsVerSel').addEventListener('change', refreshMods);
@@ -1735,6 +2121,14 @@ $('#btnResetDir').addEventListener('click', async () => {
 $('#btnOpenDataDir').addEventListener('click', async () => {
   const info = await A.appInfo();
   A.openPath(info.dataDir);
+});
+/* 28.0.1：沙箱定位修正——沙箱为鸿蒙端专属创新特性，Windows 端原生直跑、无需沙箱。
+   设置页展示沙箱说明（运行模式），不再提供 Windows 沙箱配置按钮。 */
+$('#btnSandboxInfo').addEventListener('click', async () => {
+  const r = await A.sandboxInfo();
+  if (r && r.ok){
+    toast('运行模式', 'Windows：' + r.windows + '\n鸿蒙：' + r.harmony, 'ok');
+  }
 });
 /* 离线账户名：强制英文（仅允许字母/数字/下划线） */
 const NAME_RE = /^[A-Za-z0-9_]{1,16}$/;
@@ -1880,11 +2274,12 @@ $('#btnMcWiki').addEventListener('click', () => A.openPath('https://mcmod.cn/'))
 /* 关于页：获取更新 */
 $('#btnUpdate').addEventListener('click', () => A.openPath('https://docs.qq.com/aio/DUENmdFVWVmZrWGF3'));
 
-/* 关于页：前往官网（应用内打开打包的官网页面） */
-$('#btnWebsite').addEventListener('click', async () => {
-  try { await A.openWebsite(); }
-  catch(e){ toast('无法打开官网', String(e && e.message || e), 'err'); }
-});
+/* 关于页：官网更新（直通 GitHub Pages 官网） */
+$('#btnWebsite').addEventListener('click', () => A.openPath('https://minaiyou.github.io/AOURA-Launcher/'));
+
+/* 关于页：开源仓库链接 */
+const abRepo = $('#abRepo');
+if (abRepo) abRepo.addEventListener('click', () => A.openPath('https://github.com/minaiyou/AOURA-Launcher'));
 
 /* ================= 首次启动弹窗 ================= */
 $('#acOffline').addEventListener('click', async () => {
@@ -1947,9 +2342,38 @@ function maybeShowSupportTip(authTypeAtLaunch){
 $('#mirrorSel').addEventListener('change', e => {
   cfg.mirror = e.target.value;
   A.setConfig({ mirror: cfg.mirror });
-  $('#mirrorChip').textContent = '下载源：' + (cfg.mirror === 'mojang' ? 'Mojang 官方' : 'BMCLAPI 加速镜像');
+  $('#mirrorChip').textContent = '下载源：' + (cfg.mirror === 'mojang' ? 'Mojang 官方' : cfg.mirror === 'fastmc' ? 'FastMC 镜像' : 'BMCLAPI 加速镜像');
+  $('#dlThreads').value = cfg.dlThreads || 16;
+  fmtT($('#dlThreads').value);
+  $('#dlRateLimit').value = cfg.dlRateLimit || 0;
+  fmtR($('#dlRateLimit').value);
   manifestLoaded = false;
-  toast('下载源已切换', cfg.mirror === 'mojang' ? 'Mojang 官方源' : 'BMCLAPI 镜像', 'ok');
+  toast('下载源已切换', cfg.mirror === 'mojang' ? 'Mojang 官方源' : cfg.mirror === 'fastmc' ? 'FastMC 镜像' : 'BMCLAPI 镜像', 'ok');
+});
+/* 19.1：下载线程数滑块（1-256，>64 提醒可能卡顿） */
+const dlThreadsEl = $('#dlThreads'), dlThreadsVal = $('#dlThreadsVal');
+const fmtT = v => {
+  dlThreadsVal.textContent = v;
+  dlThreadsVal.style.color = v > 64 ? '#ffb3b8' : '';
+};
+dlThreadsEl.addEventListener('input', e => fmtT(e.target.value));
+dlThreadsEl.addEventListener('change', e => {
+  const v = Math.max(1, Math.min(256, parseInt(e.target.value, 10) || 16));
+  cfg.dlThreads = v;
+  A.setConfig({ dlThreads: v });
+  fmtT(v);
+  toast('下载线程数已设置', v + ' 线程' + (v > 64 ? '（线程较大，注意电脑卡顿）' : ''), 'ok');
+});
+/* 19.1：下载速度限制滑块（KB/s，0=不限，全局限速） */
+const dlRateEl = $('#dlRateLimit'), dlRateVal = $('#dlRateLimitVal');
+const fmtR = v => { dlRateVal.textContent = (+v === 0) ? '0 · 不限' : v + ' KB/s'; };
+dlRateEl.addEventListener('input', e => fmtR(e.target.value));
+dlRateEl.addEventListener('change', e => {
+  const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+  cfg.dlRateLimit = v;
+  A.setConfig({ dlRateLimit: v });
+  fmtR(v);
+  toast('下载速度限制已设置', v > 0 ? '全局 ' + v + ' KB/s' : '不限速', 'ok');
 });
 $('#jvmArgs').addEventListener('change', e => {
   cfg.jvmArgs = e.target.value.trim();

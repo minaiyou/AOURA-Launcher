@@ -42,7 +42,7 @@
     <b>AOURA</b><span>启动器</span>
   </div>
   <div class="splash-quote" id="splashQuote">每一次启动，都是一场光的旅行</div>
-  <div class="splash-made">由珉爱制作 · AOURA 启动引擎 v18.2 · 基于 Electron</div>
+  <div class="splash-made">由珉爱制作 · AOURA 启动引擎 v28.1 · 基于 Electron</div>
   <div class="splash-bar"><i id="splashBar"></i></div>
 </div>
 
@@ -71,7 +71,7 @@
       </div>
       <span class="brand-en">AOURA</span>
       <span class="brand-cn">启动器</span>
-      <span class="brand-ver">v18.2</span>
+      <span class="brand-ver">v28.1</span>
       <span class="brand-made">由珉爱制作</span>
     </div>
     <div class="tb-spacer"></div>
@@ -182,10 +182,16 @@
             <h1>版本管理 <span class="en-tag">VERSIONS</span></h1>
             <div class="sub">共 <b id="verCount">0</b> 个已安装版本</div>
           </div>
-          <button class="btn btn-glow" id="btnGoDownload">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            下载新版本
-          </button>
+          <div class="ph-actions">
+            <button class="btn" id="btnRefreshVersions" title="刷新版本列表">
+              <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-15.5-2M4 13a8 8 0 0 0 15.5 2"/><path d="M4.5 4.5v4h4M19.5 19.5v-4h-4"/></svg>
+              刷新
+            </button>
+            <button class="btn btn-glow" id="btnGoDownload">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              下载新版本
+            </button>
+          </div>
         </div>
         <div class="java-guide" id="javaGuideBar" style="display:none">
           <svg viewBox="0 0 24 24"><path d="M12 8.5v5"/><path d="M12 16.5h.01"/><path d="M12 21.5a9.5 9.5 0 1 0 0-19 9.5 9.5 0 0 0 0 19z"/></svg>
@@ -247,6 +253,17 @@
           <span class="dl-more-info" id="dlMoreInfo"></span>
         </div>
 
+      </section>
+
+      <!-- ===== 下载任务（20.0）===== -->
+      <section class="view" id="view-dltasks">
+        <div class="page-head">
+          <div>
+            <h1>任务中心 <span class="en-tag">TASKS</span></h1>
+            <div class="sub">实时查看下载进度与安装位置，可打开目标文件夹或删除任务</div>
+          </div>
+        </div>
+        <div class="dt-list" id="dtList"></div>
       </section>
 
       <!-- ===== 资源中心 ===== -->
@@ -515,6 +532,19 @@
                 </button>
               </div>
             </div>
+            <!-- 28.0.1：运行模式——沙箱为鸿蒙端专属特性，Windows 原生直跑 -->
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">运行模式</div>
+                <div class="st-desc">Windows 原生直跑，无需沙箱；沙箱为鸿蒙 PC 端专属创新特性（鸿蒙无法直跑 Java 时自动创建容器沙箱运行游戏）</div>
+              </div>
+              <div class="st-ctrl">
+                <button class="btn" id="btnSandboxInfo">
+                  <svg viewBox="0 0 24 24"><path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3 7.5l9 4.7 9-4.7"/></svg>
+                  查看说明
+                </button>
+              </div>
+            </div>
             <div class="st-row">
               <div class="st-info">
                 <div class="st-name">下载源</div>
@@ -523,8 +553,29 @@
               <div class="st-ctrl">
                 <select id="mirrorSel">
                   <option value="bmclapi">BMCLAPI 镜像（国内加速 · 推荐）</option>
+                  <option value="fastmc">FastMC 镜像（国内 · 备用）</option>
                   <option value="mojang">Mojang 官方源</option>
                 </select>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">下载线程数</div>
+                <div class="st-desc">多线程分段下载并发数（1-256）。线程越大下载越快，超过 64 线程可能造成电脑卡顿</div>
+              </div>
+              <div class="st-ctrl st-ctrl-slider">
+                <input type="range" id="dlThreads" min="1" max="256" step="1" value="16">
+                <span class="slider-val" id="dlThreadsVal">16</span>
+              </div>
+            </div>
+            <div class="st-row">
+              <div class="st-info">
+                <div class="st-name">下载速度限制</div>
+                <div class="st-desc">单位 KB/s，0 表示不限速（默认不限速）</div>
+              </div>
+              <div class="st-ctrl st-ctrl-slider">
+                <input type="range" id="dlRateLimit" min="0" max="10240" step="64" value="0">
+                <span class="slider-val" id="dlRateLimitVal">0 · 不限</span>
               </div>
             </div>
           </div>
@@ -868,6 +919,10 @@
                   <span class="tech-dot" style="background:#6bffb2"></span>
                   <div><b>沉浸光效</b> · 鸿蒙 7 风格光带、极光光场与磨砂面板</div>
                 </div>
+                <div class="tech-item">
+                  <span class="tech-dot" style="background:#ff7ba9"></span>
+                  <div><b>鸿蒙 PC 适配</b> · HarmonyOS NEXT 适配中：ArkTS / ArkUI 重构界面层，下载与启动引擎逻辑跨平台复用</div>
+                </div>
               </div>
             </div>
             <div class="glass-card st-sec">
@@ -1094,26 +1149,28 @@
           <div class="glass-card ab-hero">
             <div class="ab-aurora" id="abAurora"></div>
             <div class="ab-logo">
-              <svg viewBox="0 0 64 64" fill="none"><path d="M14 44 32 18l18 26z" stroke="url(#lgB)" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="37" r="5" fill="#3ee6ff"/></svg>
+              <svg viewBox="0 0 64 64" fill="none"><defs><linearGradient id="lgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#69a8d0"/><stop offset="1" stop-color="#2c4a78"/></linearGradient></defs><path d="M14 44 32 18l18 26z" stroke="url(#lgA)" stroke-width="4.5" stroke-linejoin="round"/><circle cx="32" cy="37" r="3.6" fill="#3f6f9f"/><circle cx="32" cy="37" r="6" fill="none" stroke="rgba(63,111,159,.45)" stroke-width="1"/></svg>
             </div>
             <div class="ab-name">AOURA</div>
             <div class="ab-slogan">每一次启动，都是一场光的旅行</div>
-            <div class="ab-ver" id="abVer">AOURA 启动器 v18.2 · 面向我的世界玩家</div>
+            <div class="ab-ver" id="abVer">AOURA 启动器 v28.1 · 面向我的世界玩家</div>
             <div class="ab-engine" id="abEngine">AOURA 启动引擎 · 基于 Electron</div>
             <div class="ab-badges">
               <span class="chip">沉浸光效</span>
               <span class="chip">加载器安装</span>
               <span class="chip">Modrinth 集成</span>
               <span class="chip">BMCLAPI 加速源</span>
+              <span class="chip">多线程下载</span>
+              <span class="chip">速度限制</span>
             </div>
             <div class="ab-btns">
               <button class="btn btn-glow ab-update" id="btnUpdate">
-                <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
-                获取更新
+                <svg viewBox="0 0 24 24"><path d="M4.5 5.5h6v6h-6z"/><path d="M13.5 5.5h6v6h-6z"/><path d="M4.5 14.5h6v6h-6z"/><path d="M13.5 14.5h6v6h-6z"/></svg>
+                网盘更新
               </button>
               <button class="btn ab-website" id="btnWebsite">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13.5 13.5 0 0 1 0 17 13.5 13.5 0 0 1 0-17z"/></svg>
-                前往官网
+                官网更新
               </button>
             </div>
           </div>
@@ -1137,20 +1194,32 @@
                   <span class="os-tag">当前支持</span>
                 </div>
                 <div class="os-card"><svg viewBox="0 0 24 24"><path d="M5.5 4.5h8a2 2 0 0 1 2 2v9h-2v-9h-8z"/><path d="M13.5 6.5h3v3h-3z"/><path d="M13.5 12.5h3v3h-3z"/><path d="M13.5 18.5h3v1h-3z"/></svg>macOS<span class="os-tag dev">开发中</span></div>
-                <div class="os-card"><svg viewBox="0 0 24 24"><path d="M5.5 4.5h10a3 3 0 0 1 3 3v2h-2V7.5h-10z"/><path d="M5.5 19.5h10a3 3 0 0 0 3-3v-2h-2v2h-10z"/><path d="M4 8.5h10"/><path d="M4 15.5h10"/></svg>鸿蒙 OS<span class="os-tag dev">开发中</span></div>
+                <div class="os-card os-hm"><svg viewBox="0 0 24 24"><path d="M5.5 4.5h10a3 3 0 0 1 3 3v2h-2V7.5h-10z"/><path d="M5.5 19.5h10a3 3 0 0 0 3-3v-2h-2v2h-10z"/><path d="M4 8.5h10"/><path d="M4 15.5h10"/></svg>鸿蒙 OS<span class="os-tag dev">适配中</span></div>
                 <div class="os-card"><svg viewBox="0 0 24 24"><path d="M12 21 4 13a7 7 0 0 1 2-11 7 7 0 0 1 6 3.3A7 7 0 0 1 18 2a7 7 0 0 1 2 11z"/></svg>Linux<span class="os-tag dev">开发中</span></div>
               </div>
-              <div class="os-note">macOS · 鸿蒙 OS · Linux 版本正在开发中，敬请期待。</div>
+              <div class="os-note">Windows 当前支持；鸿蒙 PC 版（HarmonyOS NEXT · ArkTS 重构）适配中，macOS · Linux 版本开发中，敬请期待。</div>
               <div class="st-row">
                 <div class="st-info">
                   <div class="st-name">项目性质</div>
-                  <div class="st-desc">开源项目 · 面向我的世界玩家</div>
+                  <div class="st-desc">开源项目（MIT）· 面向我的世界玩家</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">开源仓库</div>
+                  <div class="st-desc st-link" id="abRepo">github.com/minaiyou/AOURA-Launcher</div>
                 </div>
               </div>
               <div class="st-row">
                 <div class="st-info">
                   <div class="st-name">版本号</div>
-                  <div class="st-desc" id="aboutVer">5.0</div>
+                  <div class="st-desc" id="aboutVer">28.1</div>
+                </div>
+              </div>
+              <div class="st-row">
+                <div class="st-info">
+                  <div class="st-name">运行平台</div>
+                  <div class="st-desc" id="curPlatform">检测中…</div>
                 </div>
               </div>
               <div class="st-row">
@@ -1177,6 +1246,17 @@
                     <span class="oss-tag">Adoptium Temurin</span>
                   </div>
                 </div>
+              </div>
+              <div class="st-head" style="margin-top:18px">
+                <svg viewBox="0 0 24 24"><path d="M12 3.5 20 8v8l-8 4.5L4 16V8z"/><path d="M4 8l8 4.5L20 8"/><path d="M12 12.5V20"/></svg>
+                <h3>技术架构</h3>
+              </div>
+              <div class="ab-arch">
+                <div class="arch-tier"><span class="arch-lv">界面层</span><span class="arch-item">渲染进程 · 灵感气泡 UI · 液态玻璃主题 · 粒子动效</span></div>
+                <div class="arch-tier"><span class="arch-lv">核心层</span><span class="arch-item">主进程 · 版本解析 · 资源索引 · Java 环境管理 · 启动命令构建 · 日志系统</span></div>
+                <div class="arch-tier"><span class="arch-lv">下载层</span><span class="arch-item">多线程分段下载（最高 256 线程）· 测速选源 · 速度限制 · EPERM 写盘重试 · 断点回退</span></div>
+                <div class="arch-tier"><span class="arch-lv">服务层</span><span class="arch-item">Modrinth 资源（模组/光影/整合包）· BMCLAPI 镜像 · Mojang 官方 · 微软 OAuth 正版 · Terracotta 陶瓦联机</span></div>
+                <div class="arch-tier"><span class="arch-lv">底层</span><span class="arch-item">Electron / Chromium / Node.js · Adoptium Temurin JDK · Forge / NeoForge / Fabric / Quilt</span></div>
               </div>
             </div>
 
@@ -1259,6 +1339,11 @@
     <div class="dock-item" data-view="download">
       <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M12 3.5v10"/><path d="m7.5 9.5 4.5 4.5 4.5-4.5"/><path d="M4 17.5v1.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5"/></svg></div>
       <div class="di-tip">下载中心</div>
+      <div class="di-glow"></div>
+    </div>
+    <div class="dock-item" data-view="dltasks">
+      <div class="di-ico"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v3.5H4z"/><path d="M4 12h16v3.5H4z"/><path d="M4 18.5h10v3.5H4z"/></svg></div>
+      <div class="di-tip">任务中心</div>
       <div class="di-glow"></div>
     </div>
     <div class="dock-item" data-view="resources">
@@ -1350,6 +1435,11 @@
     <div class="dlopt-title" id="dlOptTitle">下载 Minecraft 版本</div>
     <div class="dlopt-sub">选择安装方式：仅原版，或原版 + 模组加载器底层（可自选底层版本）</div>
     <div class="dlopt-opts" id="dlOptOpts"></div>
+    <div class="dlopt-name">
+      <label>版本名称（可选）</label>
+      <input type="text" id="dlOptName" placeholder="留空则使用官方版本名，如 1.21.4" maxlength="40">
+      <div class="dlopt-ver-tip">自定义名称仅对「仅原版」下载生效，方便你区分多个同版本安装</div>
+    </div>
     <div class="dlopt-ver" id="dlOptVer" style="display:none">
       <div class="dlopt-ver-row">
         <label>模组底层版本</label>
@@ -1362,6 +1452,17 @@
       <span class="src-note" id="dlSrcNote">下载源：BMCLAPI 加速镜像 · 自动回退 Mojang 官方</span>
       <button class="btn btn-mini" id="dlOptCancel">取消</button>
     </div>
+  </div>
+</div>
+
+<!-- 19.1：整合包自动导入弹窗 -->
+<div class="dlopt-mask" id="packImportMask">
+  <div class="dlopt dlopt-import">
+    <div class="dlopt-title" id="packImportTitle">正在自动导入整合包</div>
+    <div class="dlopt-sub" id="packImportName">正在解析…</div>
+    <div class="pack-import-bar"><div class="pack-import-fill" id="packImportFill"></div></div>
+    <div class="dlopt-ver-tip" id="packImportStatus">准备中…</div>
+    <div class="pack-import-path" id="packImportPath"></div>
   </div>
 </div>
 
