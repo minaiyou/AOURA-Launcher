@@ -4,14 +4,14 @@ Unicode true
 !include "FileFunc.nsh"
 
 Name "AOURA启动器"
-OutFile "/home/user/Doubao/chats/38443474319103490/aoura-launcher-app/dist/AOURA启动器-Setup-28.0.1.exe"
+OutFile "/home/user/Doubao/chats/38443474319103490/aoura-launcher-app/dist/AOURA启动器-Setup-28.3.1.exe"
 InstallDir "$LOCALAPPDATA\AOURA启动器"
 InstallDirRegKey HKCU "Software\AOURA启动器" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
 !define APPNAME "AOURA启动器"
-!define APPVERSION "28.0.1"
+!define APPVERSION "28.3.1"
 !define MUI_ICON "/home/user/Doubao/chats/38443474319103490/aoura-launcher-app/assets/icon.ico"
 !define MUI_UNICON "/home/user/Doubao/chats/38443474319103490/aoura-launcher-app/assets/icon.ico"
 !define MUI_ABORTWARNING
@@ -19,18 +19,18 @@ SetCompressor /SOLID lzma
 !define MUI_HEADERIMAGE_BITMAP "/home/user/Doubao/chats/38443474319103490/aoura-launcher-app/build/installer-header.bmp"
 !define MUI_HEADERIMAGE_RIGHT
 !define MUI_WELCOMEPAGE_TITLE_3LINES
-!define MUI_WELCOMEPAGE_TITLE "欢迎安装 AOURA 启动器 28.0.1"
+!define MUI_WELCOMEPAGE_TITLE "欢迎安装 AOURA 启动器 28.3.1"
 !define MUI_WELCOMEPAGE_TEXT "每一次启动，都是一场光的旅行。\r\n\r\n本安装程序将引导你完成 AOURA 启动器的安装：沉浸光效界面 · 一键启动 Minecraft · 模组 / 光影 / 存档 / 整合包管理 · 陶瓦联机 · 10 套主题。\r\n\r\n由珉爱制作，完全免费开源。"
 !define MUI_FINISHPAGE_TITLE "安装完成"
-!define MUI_FINISHPAGE_TEXT "AOURA 启动器 28.0.1 已安装完成。\r\n感谢选择 AOURA —— 每一次启动，都是一场光的旅行。"
+!define MUI_FINISHPAGE_TEXT "AOURA 启动器 28.3.1 已安装完成。\r\n感谢选择 AOURA —— 每一次启动，都是一场光的旅行。"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\AOURA启动器.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "立即启动 AOURA 启动器"
-!define MUI_BRANDINGTEXT "AOURA 启动器 28.0.1 · 由珉爱制作"
-VIProductVersion "28.0.1.0"
+!define MUI_BRANDINGTEXT "AOURA 启动器 28.3.1 · 由珉爱制作"
+VIProductVersion "28.3.1.0"
 VIAddVersionKey /LANG=2052 "ProductName" "AOURA启动器"
 VIAddVersionKey /LANG=2052 "FileDescription" "AOURA 启动器 - 沉浸光效 Minecraft 启动器"
-VIAddVersionKey /LANG=2052 "FileVersion" "28.0.1"
-VIAddVersionKey /LANG=2052 "ProductVersion" "28.0.1"
+VIAddVersionKey /LANG=2052 "FileVersion" "28.3.1"
+VIAddVersionKey /LANG=2052 "ProductVersion" "28.3.1"
 VIAddVersionKey /LANG=2052 "CompanyName" "珉爱"
 VIAddVersionKey /LANG=2052 "LegalCopyright" "Copyright © 珉爱"
 
@@ -48,12 +48,14 @@ Section "安装" SEC_APP
   WriteUninstaller "$INSTDIR\卸载 AOURA启动器.exe"
 
   CreateDirectory "$SMPROGRAMS\AOURA启动器"
-  CreateShortcut "$SMPROGRAMS\AOURA启动器\AOURA启动器.lnk" "$INSTDIR\AOURA启动器.exe"
-  CreateShortcut "$DESKTOP\AOURA启动器.lnk" "$INSTDIR\AOURA启动器.exe"
+  CreateShortcut "$SMPROGRAMS\AOURA启动器\AOURA启动器.lnk" "$INSTDIR\AOURA启动器.exe" "" "$INSTDIR\AOURA启动器.exe" 0
+  CreateShortcut "$DESKTOP\AOURA启动器.lnk" "$INSTDIR\AOURA启动器.exe" "" "$INSTDIR\AOURA启动器.exe" 0
+  ; 通知 Windows 外壳刷新关联与图标，避免快捷方式显示旧缓存图标
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
 
   WriteRegStr HKCU "Software\AOURA启动器" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "DisplayName" "AOURA启动器"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "DisplayVersion" "28.0.1"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "DisplayVersion" "28.3.1"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "Publisher" "珉爱"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "DisplayIcon" "$INSTDIR\AOURA启动器.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器" "UninstallString" '"$INSTDIR\卸载 AOURA启动器.exe"'
@@ -69,4 +71,6 @@ Section "Uninstall"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AOURA启动器"
   DeleteRegKey HKCU "Software\AOURA启动器"
+  ; 卸载后同样通知外壳刷新，清掉残留图标关联
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
 SectionEnd
