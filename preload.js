@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('aoura', {
   onLaunchLog: (cb) => ipcRenderer.on('launch:log', (e, d) => cb(d)),
   onLaunchStatus: (cb) => ipcRenderer.on('launch:status', (e, d) => cb(d)),
   onDownloadProgress: (cb) => ipcRenderer.on('download:progress', (e, d) => cb(d)),
+  onDownloadStuck: (cb) => ipcRenderer.on('download:stuck', (e, d) => cb(d)),
+  dlStuckResolved: () => ipcRenderer.invoke('download:stuckResolved'),
   onInstallerProgress: (cb) => ipcRenderer.on('installer:progress', (e, d) => cb(d)),
   onJavaProgress: (cb) => ipcRenderer.on('java:progress', (e, d) => cb(d)),
   onWindowMaximized: (cb) => ipcRenderer.on('window:maximized', (e, d) => cb(d))
