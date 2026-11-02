@@ -699,13 +699,33 @@ async function mpStartHost(){
   if (!res.ok){ toast('创建房间失败', res.error, 'error'); return; }
   tcPoll();
 }
+// 28.2.3：本地格式预检——对齐 terracotta 房间码规则（U/ 开头 + 4 组各 4 字符、用 "-" 分隔，
+// 字符为数字与大写字母；I/O 由引擎内部容错为 1/0）。返回精确的错误提示，避免笼统的"格式错误"
+// 让用户无法定位；返回空串表示本地格式通过，最终校验位仍由 terracotta 判定。
+function mpValidateCode(raw){
+  const code = String(raw || '').trim().toUpperCase();
+  if (!code) return '请输入房主的邀请码';
+  if (code[0] !== 'U' || code[1] !== '/') return '邀请码应以 "U/" 开头，请核对';
+  const groups = code.slice(2).split('-');
+  if (groups.length !== 4) return '邀请码应为 4 组、用 "-" 分隔（当前为 ' + groups.length + ' 组）';
+  for (let i = 0; i < 4; i++){
+    const g = groups[i];
+    if (g.length !== 4) return '第 ' + (i + 1) + ' 组只有 ' + g.length + ' 位、应为 4 位（"' + g + '"），请核对是否漏复制字符';
+    if (/[^0-9A-Z]/.test(g)){
+      const ch = g.match(/[^0-9A-Z]/)[0];
+      return '第 ' + (i + 1) + ' 组含非法字符 "' + ch + '"，邀请码只能用数字和字母';
+    }
+  }
+  return '';
+}
 async function mpStartGuest(){
   const code = $('#mpCodeInput').value.trim();
-  if (!code){ $('#mpCodeHint').textContent = '请输入房主的邀请码'; return; }
+  const pre = mpValidateCode(code);
+  if (pre){ $('#mpCodeHint').textContent = pre; return; }
   if (!await mpEnsureEngine()) return;
   const res = await A.tcGuest(code, mpAccName());
   if (!res.ok){
-    if (res.status === 400){ $('#mpCodeHint').textContent = '邀请码格式错误（应为 U/XXXX-XXXX-XXXX-XXXX）'; return; }
+    if (res.status === 400){ $('#mpCodeHint').textContent = '邀请码校验位未通过，请向房主重新核对完整邀请码'; return; }
     toast('加入房间失败', res.error, 'error');
     return;
   }
@@ -1343,15 +1363,15 @@ async function openDlOpt(id){
     sel.innerHTML = list.map(v => '<option value="' + v + '"' + (v === rec ? ' selected' : '') + '>' + v + (v === rec ? '（推荐）' : '') + '</option>').join('');
     $('#dlOptLvTip').innerHTML = '<b>推荐版本：' + rec + '</b>（启动器已为你挑选兼容稳定的版本，也可自行选择其他版本）';
   }));
-  // 后台探测加载器源：不可达的选项补标"暂不支持"
+  // 后台探测加载器源：不可达的选项仅弱提示，不禁用（28.0.11：一次探测失败就永久标"暂不支持"且禁用，
+  // 用户实际能安装时反而被锁死；改为可尝试——点击后版本列表请求会再走多源重试）
   A.loaderSourceOk().then(srcOk => {
     opts.forEach(o => {
       if (!o.opt || srcOk[o.opt]) return;
       const el = $('#dlOptOpts [data-opt="' + o.opt + '"]');
       if (el){
         el.classList.add('ns');
-        el.disabled = true;
-        el.querySelector('.oo-go').textContent = '暂不支持';
+        el.querySelector('.oo-go').textContent = '可尝试';
       }
     });
   }).catch(() => {});
@@ -1466,6 +1486,7 @@ function dtPhaseLabel(p){
   if (p.phase === 'index') return '下载资源索引';
   if (p.phase === 'asset') return '下载资源文件 ' + (p.index||0) + '/' + (p.totalObjs||'?');
   if (p.phase === 'mods' || p.phase === 'shaderpacks' || p.phase === 'resourcepacks' || p.phase === 'modpacks') return '下载资源';
+  if (p.phase === 'loader') return p.loaderLabel || '安装模组加载器…';
   return p.phase || '';
 }
 function dtPv(p){
@@ -1473,6 +1494,7 @@ function dtPv(p){
     return p.total ? p.received / p.total : 0;
   if (p.phase === 'lib') return p.totalLibs ? ((p.index||0) + (p.total ? p.received/p.total : 0)) / p.totalLibs : 0;
   if (p.phase === 'asset') return p.totalObjs ? (p.index||0) / p.totalObjs : 0;
+  if (p.phase === 'loader') return p.loaderProg != null ? p.loaderProg / 100 : 0;
   if (p.phase === 'start') return 0.02;
   return 0;
 }
@@ -1558,6 +1580,15 @@ function dtDone(key){
   const it = dtItems.get(key); if (!it || it.done) return;
   it.done = true; it.el.classList.add('done');
   it.status.textContent = '已完成'; it.pct.textContent = '100%'; it.bar.style.width = '100%';
+  // 28.0.10：下载完成后自动收起任务条（5 秒后自动移除），不再占着任务中心；
+  // 想查看/删除可在这 5 秒内操作，或前往对应目录自行处理
+  setTimeout(() => {
+    if (dtItems.get(key) === it){
+      it.el.remove();
+      dtItems.delete(key);
+      dtRenderEmpty();
+    }
+  }, 5000);
 }
 function dtFail(key, msg){
   const it = dtItems.get(key); if (!it || it.done) return;
@@ -1607,6 +1638,33 @@ A.onDownloadProgress(p => {
   it._progMax[mk] = np;
   it.pct.textContent = np + '%';
   it.bar.style.width = np + '%';
+});
+/* 28.0.7：下载长时间无进度 → 弹窗引导切换下载源（前往修改 / 暂不修改） */
+A.onDownloadStuck(d => {
+  const m = $('#dlStuckMask');
+  if (!m) return;
+  if (m.classList.contains('open')) return; // 已弹着就不再重复弹
+  $('#dlStuckHint').textContent = (d && d.phase) || '当前下载长时间没有进度，可能是下载源被限流或网络不稳定。';
+  m.classList.add('open');
+});
+$('#dlStuckCancel').addEventListener('click', () => {
+  $('#dlStuckMask').classList.remove('open');
+  A.dlStuckResolved(); // 通知主进程：用户选择暂不修改，允许后续再次触发
+  toast('继续等待下载', '如长时间仍无进度可再次前往设置切换下载源');
+});
+$('#dlStuckGo').addEventListener('click', () => {
+  $('#dlStuckMask').classList.remove('open');
+  A.dlStuckResolved();
+  go('settings');
+  // 高亮下载源设置项，引导用户直接修改
+  const sel = $('#mirrorSel');
+  const card = sel && sel.closest('.st-row, .st-card, .set-row');
+  if (card){
+    card.classList.add('stuck-flash');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => card.classList.remove('stuck-flash'), 1800);
+  }
+  toast('请在设置中切换下载源', '可切换 Mojang 官方 / BMCLAPI / FastMC');
 });
 $('#dlFloatCancel').addEventListener('click', () => {
   A.cancelDownload();
@@ -1919,6 +1977,17 @@ A.onInstallerProgress(p => {
       $('#ldpBar').style.width = '100%';
     }
   }
+  // 同步到任务中心（28.0.11：加载器预置/安装进度也进任务中心，不再空白）
+  if (dlWithLoader){
+    const key = 'ver:' + dlWithLoader.id;
+    let lp = 0, ll = '安装 ' + name + '…';
+    if (p.stage === 'download' && p.libTotal){ lp = 30 + Math.round((p.libDone || 0) / p.libTotal * 60); ll = '预置 ' + name + ' 库文件 ' + (p.libDone || 0) + '/' + p.libTotal; }
+    else if (p.stage === 'download'){ lp = 60 + Math.round((p.received || 0) / Math.max(p.total || 1, 1) * 15); ll = '下载 ' + name + ' 安装器' + (p.total ? ' ' + Math.round(p.received / p.total * 100) + '%' : '…'); }
+    else if (p.stage === 'run'){ lp = 80; ll = name + ' 安装器运行中 · 下载库文件中…'; }
+    else if (p.stage === 'done'){ lp = 100; ll = name + ' 安装完成'; }
+    dtSync({ task: dlWithLoader.id, phase: 'loader', loaderLabel: ll, loaderProg: lp, loc: '' }, key);
+    if (p.stage === 'done') dtDone(key); // 完成后 5 秒自动收起
+  }
   // 同步到全局下载浮动面板
   if (dlWithLoader){
     const it = dlItems.get('ver:' + dlWithLoader.id);
@@ -2186,12 +2255,55 @@ async function renderMsStatus(){
   }
 }
 let msPollTimer = null;
+/* 28.3：无内置/自定义 Client ID 时的统一引导弹窗。
+   用户保存 id 后 resolve(true)，取消 resolve(false)。 */
+function showMsClientIdGuide(){
+  return new Promise(resolve => {
+    const mask = $('#dlOptMask');
+    mask.innerHTML =
+      '<div class="dlopt" style="max-width:460px">' +
+      '<div class="dlopt-title">正版登录 · 一次性配置</div>' +
+      '<div class="dlopt-sub">桌面启动器属于公共客户端，需要一个免费的 Azure 应用 ID（微软官方许可的行业做法，HMCL、PCL 等主流启动器同样需要）。完成一次注册后，把“应用程序（客户端）ID”粘贴到这里即可。</div>' +
+      '<ol style="text-align:left;font-size:13px;line-height:1.7;margin:4px 0 12px;padding-left:20px">' +
+      '<li>打开 Azure 应用注册页（免费，无需 Azure 订阅）</li>' +
+      '<li>账户类型选“任何组织目录中的账户和个人 Microsoft 账户”</li>' +
+      '<li>在“认证”里开启“允许公共客户端流”</li>' +
+      '<li>复制“应用程序（客户端）ID”并粘贴到下方</li>' +
+      '</ol>' +
+      '<input type="text" id="msGuideClientId" placeholder="粘贴应用程序（客户端）ID" style="width:100%;margin-bottom:12px">' +
+      '<div class="dlopt-opts" style="flex-direction:column">' +
+      '<button class="btn" id="btnMsGuideSave">保存并登录</button>' +
+      '<button class="btn btn-mini" id="btnMsGuideOpen">打开分步注册指南</button>' +
+      '<button class="btn btn-mini" id="btnMsGuideCancel">取消</button>' +
+      '</div>' +
+      '</div>';
+    mask.classList.add('open');
+    $('#btnMsGuideSave').addEventListener('click', async () => {
+      const v = $('#msGuideClientId').value.trim();
+      if (!v){ toast('请先粘贴应用程序 ID', '', 'warn'); return; }
+      await A.msSetClientId(v);
+      const ci = $('#msClientId'); if (ci) ci.value = v;
+      cfg = await A.getConfig();
+      mask.classList.remove('open');
+      resolve(true);
+    });
+    $('#btnMsGuideOpen').addEventListener('click', () => A.openPath('https://learn.microsoft.com/zh-cn/entra/identity-platform/quickstart-register-app'));
+    $('#btnMsGuideCancel').addEventListener('click', () => { mask.classList.remove('open'); resolve(false); });
+  });
+}
+/* 28.3：高级设置折叠切换 */
+$('#btnMsAdvancedToggle').addEventListener('click', () => {
+  const box = $('#msAdvancedBox');
+  const hidden = box.style.display === 'none';
+  box.style.display = hidden ? '' : 'none';
+  $('#btnMsAdvancedToggle').textContent = hidden ? '收起' : '展开';
+});
 async function msLoginFlow(){
   try {
     const st = await A.msStatus();
     if (st.needClientId){
-      toast('需要应用 Client ID', '请先在下方填写 Azure 应用 Client ID 并保存', 'warn');
-      return;
+      const ok = await showMsClientIdGuide();
+      if (!ok){ $('#btnMsLogin') && ($('#btnMsLogin').disabled = false); return; }
     }
     $('#btnMsLogin') && ($('#btnMsLogin').disabled = true);
     const dc = await A.msDeviceCode();
@@ -2296,32 +2408,10 @@ $('#acMicrosoft').addEventListener('click', async () => {
   cfg = await A.getConfig();
   const st = await A.msStatus();
   if (st.needClientId){
-    // 引导填写 Client ID
-    const mask = $('#dlOptMask');
-    mask.innerHTML =
-      '<div class="dlopt" style="max-width:440px">' +
-      '<div class="dlopt-title">正版登录 · 需要应用 Client ID</div>' +
-      '<div class="dlopt-sub">微软要求第三方启动器使用自己注册的应用 ID（微软官方许可的行业做法）。打开注册指南完成注册后，把“应用程序（客户端）ID”粘贴到这里。</div>' +
-      '<input type="text" id="msFirstClientId" placeholder="粘贴 Azure 应用 Client ID" style="width:100%;margin-bottom:12px">' +
-      '<div class="dlopt-opts" style="flex-direction:column">' +
-      '<button class="btn" id="btnMsFirstSave">保存并开始登录</button>' +
-      '<button class="btn btn-mini" id="btnMsFirstGuide">打开注册指南</button>' +
-      '</div>' +
-      '</div>';
-    mask.classList.add('open');
-    $('#btnMsFirstGuide').addEventListener('click', () => A.openPath('https://learn.microsoft.com/zh-cn/azure/active-directory/develop/quickstart-register-app'));
-    $('#btnMsFirstSave').addEventListener('click', async () => {
-      const v = $('#msFirstClientId').value.trim();
-      if (!v){ toast('请先粘贴 Client ID', '', 'warn'); return; }
-      await A.msSetClientId(v);
-      $('#msClientId').value = v;
-      cfg = await A.getConfig();
-      mask.classList.remove('open');
-      await msLoginFlow();
-    });
-  } else {
-    await msLoginFlow();
+    const ok = await showMsClientIdGuide();
+    if (!ok) return;
   }
+  await msLoginFlow();
 });
 
 /* ================= 离线游玩每满 10 次：请支持正版 ================= */

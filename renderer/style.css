@@ -190,7 +190,7 @@ body[data-theme="midnight"]{
 .splash-logo{position:relative;width:210px;height:210px;display:flex;align-items:center;justify-content:center;animation:logoIn 1.1s var(--ease) both}
 @keyframes logoIn{from{transform:scale(.75);opacity:0}to{transform:scale(1);opacity:1}}
 .sl-core{position:relative;z-index:3;width:96px;height:96px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 22px rgba(77,184,255,.5))}
-.sl-core svg{width:100%;height:100%;animation:coreBreath 2.6s ease-in-out infinite}
+.sl-core img{width:100%;height:100%;animation:coreBreath 2.6s ease-in-out infinite}
 @keyframes coreBreath{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 .sl-ring{position:absolute;border-radius:50%;border:1px solid rgba(125,190,255,.35)}
 .sl-ring.r1{inset:8px;border-color:rgba(77,227,255,.4);animation:ringSpin 9s linear infinite}
@@ -221,7 +221,7 @@ body[data-theme="midnight"]{
 .no-drag{-webkit-app-region:no-drag}
 .brand{display:flex;align-items:center;gap:8px}
 .brand-logo{width:26px;height:26px}
-.brand-logo svg{width:100%;height:100%;filter:drop-shadow(0 0 8px rgba(77,227,255,.6))}
+.brand-logo img{width:100%;height:100%;filter:drop-shadow(0 0 8px rgba(77,227,255,.6))}
 .brand-en{font-weight:800;letter-spacing:1.5px;font-size:15px;background:linear-gradient(90deg,var(--cyan),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .brand-cn{color:var(--txt-2);font-size:13px;letter-spacing:1px}
 .brand-ver{font-size:10px;color:var(--cyan);border:1px solid rgba(77,227,255,.35);border-radius:6px;padding:1px 5px;letter-spacing:.5px}
@@ -334,7 +334,7 @@ body.log-open .dock{bottom:326px}
   filter:blur(8px);animation:auraFlow 7s ease-in-out infinite alternate}
 @keyframes auraFlow{0%{transform:rotate(0deg) scale(1)}100%{transform:rotate(12deg) scale(1.1)}}
 .hs-play{display:flex;flex-direction:column;align-items:center;gap:18px;position:relative;animation:cardIn .7s var(--ease) .1s both;z-index:2}
-.mega-play{position:relative;width:236px;height:236px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--cyan) 30%,transparent),rgba(12,24,54,.80) 55%,rgba(7,13,32,.88));border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);color:#eaffff;transition:transform .3s var(--ease),box-shadow .3s;box-shadow:0 22px 70px rgba(0,0,0,.5),0 0 60px color-mix(in srgb,var(--cyan) 22%,transparent),inset 0 0 44px color-mix(in srgb,var(--cyan) 14%,transparent);animation:blobMorph 7.5s ease-in-out infinite alternate}
+.mega-play{position:relative;width:236px;height:236px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--cyan) 30%,transparent),rgba(12,24,54,.80) 55%,rgba(7,13,32,.88));border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);color:#eaffff;transition:transform .3s var(--ease),box-shadow .3s;box-shadow:0 22px 70px rgba(0,0,0,.5),0 0 60px color-mix(in srgb,var(--cyan) 22%,transparent),inset 0 0 44px color-mix(in srgb,var(--cyan) 14%,transparent)}
 @keyframes blobMorph{
   0%{border-radius:44% 56% 58% 42%/55% 45% 50% 50%}
   25%{border-radius:58% 42% 45% 55%/48% 55% 45% 52%}
@@ -658,6 +658,12 @@ body[data-theme="galaxy"]{
 .dlopt-opt.ns .oo-txt b::after{content:" · 暂不支持";color:var(--txt-faint);font-size:11px;font-weight:500;margin-left:6px}
 .dlopt-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line-2)}
 .src-note{font-size:11px;color:var(--txt-faint)}
+/* 28.0.7：下载卡住弹窗「前往修改」后高亮下载源设置行 */
+.st-row.stuck-flash{animation:stuckFlash 1.8s var(--ease)}
+@keyframes stuckFlash{
+  0%,100%{box-shadow:none;background:transparent}
+  20%,80%{box-shadow:0 0 0 2px var(--accent,#4cc2ff),0 0 24px rgba(76,194,255,.35);background:var(--accent-soft,rgba(76,194,255,.08))}
+}
 
 /* ============ 资源中心 ============ */
 .rs-tabs{display:flex;gap:10px;margin-bottom:16px;animation:fadeUp .5s var(--ease) both}
@@ -764,7 +770,7 @@ body[data-theme="galaxy"]{
 .switch.on::after{left:22px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7)}
 .st-about{text-align:center;padding:30px 20px}
 .ab-logo{width:64px;height:64px;margin:0 auto 12px}
-.ab-logo svg{width:100%;height:100%;filter:drop-shadow(0 0 14px rgba(77,227,255,.55));animation:coreBreath 3s ease-in-out infinite}
+.ab-logo img{width:100%;height:100%;filter:drop-shadow(0 0 14px rgba(77,227,255,.55));animation:coreBreath 3s ease-in-out infinite}
 .ab-name{font-size:22px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,var(--cyan),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .ab-ver{font-size:12.5px;color:var(--txt-2);margin-top:7px}
 .ab-made{font-size:12px;color:var(--txt-faint);margin-top:4px}
@@ -837,7 +843,7 @@ body[data-theme="galaxy"]{
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   .splash.done{display:none}
 }
-body.no-blur .glass-card,body.no-blur .dock,body.no-blur .titlebar,body.no-blur .log-drawer,body.no-blur .dlopt{backdrop-filter:none;-webkit-backdrop-filter:none}
+body.no-blur .glass-card,body.no-blur .dock,body.no-blur .titlebar,body.no-blur .log-drawer,body.no-blur .dlopt,body.no-blur .env-bub{backdrop-filter:none;-webkit-backdrop-filter:none}
 
 /* ============ 联机页 · Terracotta 陶瓦联机 ============ */
 .mp-wrap{max-width:760px;margin:0 auto;padding-top:24px}
@@ -949,7 +955,7 @@ body.no-blur .glass-card,body.no-blur .dock,body.no-blur .titlebar,body.no-blur 
 .ab-aurora{position:absolute;inset:-60% -30%;background:radial-gradient(ellipse at 30% 18%,rgba(77,227,255,.22),transparent 42%),radial-gradient(ellipse at 72% 70%,rgba(157,123,255,.20),transparent 45%),radial-gradient(ellipse at 55% 95%,rgba(77,227,255,.10),transparent 50%);animation:abFlow 9s ease-in-out infinite alternate;pointer-events:none}
 @keyframes abFlow{0%{transform:translate3d(-2%,-1%,0) scale(1)}100%{transform:translate3d(2%,1%,0) scale(1.12)}}
 .ab-hero .ab-logo{position:relative;width:74px;height:74px;margin:0 auto 16px;border-radius:24px;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,rgba(77,227,255,.18),rgba(157,123,255,.14));border:1px solid rgba(77,227,255,.3);box-shadow:0 0 40px rgba(77,227,255,.22);animation:mpPulse 3.2s ease-in-out infinite}
-.ab-hero .ab-logo svg{width:42px;height:42px}
+.ab-hero .ab-logo img{width:42px;height:42px}
 .ab-name{position:relative;font-size:34px;font-weight:800;letter-spacing:10px;background:linear-gradient(120deg,#fff,#9beaff 55%,#c9b8ff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-left:10px;text-shadow:0 0 30px rgba(77,227,255,.25)}
 .ab-slogan{position:relative;font-size:13px;color:var(--cyan);margin-top:6px;letter-spacing:3px;opacity:.92}
 .ab-ver{position:relative;font-size:12.5px;color:var(--txt-2);margin-top:14px}
@@ -1054,6 +1060,12 @@ body.no-blur .glass-card,body.no-blur .dock,body.no-blur .titlebar,body.no-blur 
 .rs-tr:disabled{opacity:.55;cursor:wait}
 
 .oss-tag{display:inline-block;font-size:12px;padding:3px 10px;border-radius:9px;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);background:rgba(16,28,58,.5);color:var(--txt-2);margin:2px 4px 2px 0}
+/* 28.0.2：关于页开源声明 */
+.oss-declare{border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 12%,rgba(18,30,62,.42)),rgba(8,16,38,.32));border-radius:16px;padding:14px 16px;margin-top:4px}
+.oss-declare-t{font-size:13.5px;font-weight:600;color:color-mix(in srgb,var(--cyan) 78%,#fff);margin-bottom:8px}
+.oss-declare-b{font-size:12px;line-height:1.75;color:var(--txt-2);margin-bottom:7px}
+.oss-declare-b:last-child{margin-bottom:0}
+.oss-declare .st-link{cursor:pointer}
 .author-av img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 
 .env-panel{
@@ -1106,15 +1118,16 @@ body.no-blur .glass-card,body.no-blur .dock,body.no-blur .titlebar,body.no-blur 
 
 /* ===== 17.0 主页：游戏环境气泡围绕启动键 ===== */
 .env-bubbles{position:absolute;inset:0;pointer-events:none;z-index:1}
-.env-bub{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:122px;height:122px;border-radius:50%;pointer-events:auto;cursor:default;color:var(--fg);overflow:visible;
+.env-bub{position:absolute;isolation:isolate;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:122px;height:122px;border-radius:50%;pointer-events:auto;cursor:default;color:var(--fg);overflow:visible;
   background:
     radial-gradient(120% 90% at 28% 18%,color-mix(in srgb,var(--cyan) 26%,rgba(255,255,255,.16)),transparent 46%),
     radial-gradient(90% 80% at 72% 84%,color-mix(in srgb,var(--accent-2) 16%,transparent),transparent 52%),
-    linear-gradient(168deg,color-mix(in srgb,var(--accent) 22%,rgba(24,40,82,.72)),rgba(7,14,34,.56) 62%,rgba(12,22,50,.5));
+    linear-gradient(168deg,color-mix(in srgb,var(--accent) 22%,rgba(24,40,82,.78)),rgba(7,14,34,.7) 62%,rgba(12,22,50,.66)),
+    linear-gradient(168deg,rgba(19,31,62,.97),rgba(8,15,34,.97));
   border:1px solid color-mix(in srgb,var(--accent) 36%,rgba(255,255,255,.1));
   box-shadow:0 16px 40px rgba(0,0,0,.45),0 0 30px color-mix(in srgb,var(--cyan) 14%,transparent),inset 0 1px 1px rgba(255,255,255,.28),inset 0 -14px 26px color-mix(in srgb,var(--accent) 9%,transparent),inset 0 0 18px color-mix(in srgb,var(--cyan) 7%,transparent);
   backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
-  animation:bubFloat 6.5s ease-in-out infinite,bubGlow 5s ease-in-out infinite,bubPulse 7s ease-in-out infinite,blobMorph 8s ease-in-out infinite alternate;transition:transform .28s var(--ease),border-color .28s,box-shadow .28s}
+  animation:bubFloat 6.5s ease-in-out infinite,bubGlow 5s ease-in-out infinite;transition:transform .28s var(--ease),border-color .28s,box-shadow .28s}
 .env-bub::after{content:"";position:absolute;left:14%;top:7%;width:44%;height:22%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,.4),transparent 70%);filter:blur(2px);pointer-events:none;animation:bubSheen 4.4s ease-in-out infinite}
 .env-bub::before{content:"";position:absolute;inset:-2px;border-radius:inherit;background:conic-gradient(from var(--spin,0deg),transparent 0 14%,color-mix(in srgb,var(--cyan) 44%,transparent) 24%,transparent 38%,color-mix(in srgb,var(--violet) 34%,transparent) 58%,transparent 72%,color-mix(in srgb,var(--teal) 32%,transparent) 84%,transparent 94%);filter:blur(5px);z-index:-1;pointer-events:none;animation:blobSpin 8s linear infinite}
 .env-bub:hover{transform:scale(1.08) rotate(-1.6deg);border-color:color-mix(in srgb,var(--cyan) 66%,rgba(255,255,255,.2));box-shadow:0 22px 52px rgba(0,0,0,.5),0 0 46px color-mix(in srgb,var(--cyan) 30%,transparent),inset 0 1px 1px rgba(255,255,255,.36),inset 0 -14px 26px color-mix(in srgb,var(--accent) 10%,transparent)}
